@@ -5,6 +5,7 @@
         <component :is="Component" />
       </transition>
     </router-view>
+    <MascotDock />
   </div>
 </template>
 
@@ -12,6 +13,7 @@
 import { onBeforeUnmount, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useScrollReveal } from '@/composables/useScrollReveal'
+import MascotDock from '@/components/layout/MascotDock.vue'
 
 const router = useRouter()
 const { init, destroy } = useScrollReveal()
