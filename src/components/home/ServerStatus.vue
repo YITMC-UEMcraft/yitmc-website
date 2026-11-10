@@ -126,6 +126,14 @@
                 <div class="server-card__stat">
                   <span
                     class="server-card__stat-val"
+                    :class="entry.status?.tps ? tpsClass(entry.status.tps.tps1m) : ''"
+                    :title="entry.status?.tps ? tpsTitle(entry.status.tps) : undefined"
+                  >{{ entry.status?.tps ? entry.status.tps.tps1m.toFixed(1) : '--' }}</span>
+                  <span class="server-card__stat-label">TPS</span>
+                </div>
+                <div class="server-card__stat">
+                  <span
+                    class="server-card__stat-val"
                     :title="entry.status?.online ? entry.status.version : undefined"
                   >{{ shortVersion(entry.status?.version) }}</span>
                   <span class="server-card__stat-label">版本</span>
@@ -135,6 +143,27 @@
           </Transition>
         </div>
       </div>
+
+      <!-- 主服 Dynmap 实时地图入口 -->
+      <a
+        class="server-map"
+        href="https://srvlmap.yitmc.cn/"
+        target="_blank"
+        rel="noopener"
+        data-reveal
+      >
+        <span class="server-map__icon">
+          <AppIcon name="map" :size="26" />
+        </span>
+        <span class="server-map__body">
+          <span class="server-map__title">社团服务器实时地图</span>
+          <span class="server-map__desc">在浏览器中实时浏览燕通联合主服的地形、建筑与在线玩家位置</span>
+        </span>
+        <span class="server-map__cta">
+          打开地图
+          <AppIcon name="chevron-right" :size="14" />
+        </span>
+      </a>
     </div>
   </section>
 </template>
@@ -142,10 +171,20 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { servers, type McServerConfig } from '@/data'
+import AppIcon from '@/components/icons/AppIcon.vue'
 
 /* ---------------- 配置 ---------------- */
 
-const STAT_LABELS = ['在线 / 最大', '延迟', '版本']
+const STAT_LABELS = ['在线 / 最大', '延迟', 'TPS', '版本']
+
+/** TPS 实时数据（由服务器侧 tps-export 定时任务经 status-api 透出） */
+interface TpsInfo {
+  tps1m: number
+  tps5m: number | null
+  tps15m: number | null
+  mspt: number | null
+  age: number | null
+}
 
 interface NormalizedStatus {
   online: boolean
@@ -159,6 +198,7 @@ interface NormalizedStatus {
   srvHost: string
   srvPort: number
   latency: number | null
+  tps: TpsInfo | null
 }
 
 interface ServerEntry {
@@ -173,6 +213,8 @@ interface ServerEntry {
 const MCSTATUS_API = 'https://api.mcstatus.io/v2/status/java/'
 const MCSRVSTAT_API = 'https://api.mcsrvstat.us/3/'
 const MINETOOLS_API = 'https://api.minetools.eu/ping/'
+// 同源状态代理（status-api.php）：由官网服务器直查并缓存，优先于海外公共 API
+const LOCAL_STATUS_API = '/status-api.php'
 
 const entries = reactive<ServerEntry[]>(servers.map((config) => ({
   config,
@@ -262,6 +304,7 @@ function normalizeMcStatusIo(j: any): NormalizedStatus {
     srvHost: j?.srv_record?.host ?? '',
     srvPort: j?.srv_record?.port ?? 0,
     latency: null,
+    tps: null,
   }
 }
 
@@ -278,14 +321,57 @@ function normalizeMcsrvstat(j: any): NormalizedStatus {
     srvHost: '',
     srvPort: 0,
     latency: null,
+    tps: null,
   }
 }
 
-/** 查询单台服务器：mcstatus.io 为主，mcsrvstat 兜底，minetools 补延迟 */
+/** 同源代理 status-api.php 已返回归一化结构，仅做字段兜底 */
+function parseTps(v: any): TpsInfo | null {
+  if (!v || typeof v.tps1m !== 'number' || !Number.isFinite(v.tps1m)) return null
+  const num = (x: any): number | null => (typeof x === 'number' && Number.isFinite(x) ? x : null)
+  return {
+    tps1m: v.tps1m,
+    tps5m: num(v.tps5m),
+    tps15m: num(v.tps15m),
+    mspt: num(v.mspt),
+    age: num(v.age),
+  }
+}
+
+function normalizeLocal(j: any): NormalizedStatus {
+  const list = Array.isArray(j?.playerList) ? j.playerList : []
+  return {
+    online: !!j?.online,
+    version: String(j?.version ?? ''),
+    playersOnline: Number(j?.playersOnline ?? 0),
+    playersMax: Number(j?.playersMax ?? 0),
+    playerList: list.map((p: any) => String(p ?? '')).filter(Boolean),
+    motd: String(j?.motd ?? ''),
+    favicon: String(j?.favicon ?? ''),
+    srvHost: String(j?.srvHost ?? ''),
+    srvPort: Number(j?.srvPort ?? 0),
+    latency: typeof j?.latency === 'number' && j.latency > 0 ? Math.round(j.latency) : null,
+    tps: parseTps(j?.tps),
+  }
+}
+
+/** 查询单台服务器：同源代理优先，mcstatus.io 次之，mcsrvstat 兜底，minetools 补延迟 */
 async function queryServer(config: McServerConfig): Promise<NormalizedStatus> {
   const host = config.address
   const addr = config.port ? `${host}:${config.port}` : host
   if (!isPublicHost(host)) throw new Error('无效的服务器地址')
+
+  // 同源代理：官网服务器直查（SRV、缓存、不受访客网络影响）。
+  // 接口不存在（静态托管/未上传）时返回 SPA HTML，json() 解析失败会静默走公共 API。
+  let local: NormalizedStatus | null = null
+  try {
+    const q = config.port ? `?host=${encodeURIComponent(host)}&port=${config.port}` : `?host=${encodeURIComponent(host)}`
+    const l = await fetchJson<any>(LOCAL_STATUS_API + q, 5000)
+    if (l && typeof l.online === 'boolean') local = normalizeLocal(l)
+  } catch {
+    /* 代理不可用，继续公共 API */
+  }
+  if (local?.online) return local
 
   let status: NormalizedStatus
   try {
@@ -293,6 +379,8 @@ async function queryServer(config: McServerConfig): Promise<NormalizedStatus> {
   } catch {
     status = normalizeMcsrvstat(await fetchJson(MCSRVSTAT_API + addr, 15000))
   }
+  if (!status.online && local) return local
+  if (!status.online && !local) return status
 
   if (status.online) {
     const pingHost = status.srvHost || host
@@ -325,7 +413,7 @@ async function refreshAll() {
     } catch {
       entry.status = {
         online: false, version: '', playersOnline: 0, playersMax: 0,
-        playerList: [], motd: '', favicon: '', srvHost: '', srvPort: 0, latency: null,
+        playerList: [], motd: '', favicon: '', srvHost: '', srvPort: 0, latency: null, tps: null,
       }
     } finally {
       entry.progress = 100
@@ -381,6 +469,20 @@ function latencyClass(ms: number | null | undefined): string {
   if (ms <= 100) return 'latency-good'
   if (ms <= 300) return 'latency-ok'
   return 'latency-bad'
+}
+
+/** TPS 着色：≥19 正常 / ≥15 轻微卡顿 / 其余红色告警 */
+function tpsClass(tps: number): string {
+  if (tps >= 19) return 'latency-good'
+  if (tps >= 15) return 'latency-ok'
+  return 'latency-bad'
+}
+
+function tpsTitle(t: TpsInfo): string {
+  const f = (x: number | null) => (x == null ? '--' : x.toFixed(2))
+  const parts = [`1分钟 ${f(t.tps1m)}`, `5分钟 ${f(t.tps5m)}`, `15分钟 ${f(t.tps15m)}`]
+  if (t.age != null) parts.push(t.age <= 90 ? '实时' : `${Math.max(1, Math.round(t.age / 60))} 分钟前更新`)
+  return parts.join(' ｜ ')
 }
 
 /** 群组端的版本串可能极长（如 Waterfall 全版本列表），截断展示、悬浮看全文 */
@@ -515,6 +617,87 @@ onMounted(refreshAll)
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
+}
+
+/* ---- 实时地图入口 ---- */
+.server-map {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  margin-top: var(--space-lg);
+  padding: var(--space-lg);
+  background: var(--color-surface);
+  border: var(--border-width-sm) solid var(--color-surface-light);
+  border-left: 4px solid var(--color-gold);
+  box-shadow: var(--shadow-pixel-sm);
+  text-decoration: none;
+  transition: transform 0.2s var(--ease-spring),
+              box-shadow 0.2s var(--ease-apple-out),
+              border-color var(--duration-normal) var(--ease-out);
+}
+
+.server-map:hover {
+  transform: translateY(-4px);
+  border-color: var(--color-gold-dim);
+  border-left-color: var(--color-gold);
+  box-shadow: var(--shadow-pixel);
+}
+
+.server-map__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  color: var(--color-gold);
+  background: rgba(218, 165, 32, 0.14);
+  border: var(--border-width-sm) solid var(--color-gold-dim);
+}
+
+.server-map__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25em;
+}
+
+.server-map__title {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  color: var(--color-text);
+  line-height: 1.2;
+}
+
+.server-map__desc {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  line-height: 1.6;
+}
+
+.server-map__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  flex-shrink: 0;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-accent);
+  background: transparent;
+  border: var(--border-width-sm) solid var(--color-accent);
+  padding: 6px 14px;
+  line-height: 1.2;
+  white-space: nowrap;
+  transition: background var(--duration-normal) var(--ease-out),
+              color var(--duration-normal) var(--ease-out);
+}
+
+.server-map:hover .server-map__cta {
+  background: var(--color-accent);
+  color: #fff;
 }
 
 .server-card {
@@ -749,7 +932,7 @@ onMounted(refreshAll)
 /* ---- 统计 ---- */
 .server-card__stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   border-top: 1px solid var(--color-surface-light);
 }
 
@@ -900,13 +1083,23 @@ onMounted(refreshAll)
     border-left: none;
     border-top: 1px solid var(--color-surface-light);
   }
+
+  .server-map {
+    flex-wrap: wrap;
+  }
+
+  .server-map__cta {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .server-card,
   .server-card__progress-fill,
   .server-card__dot,
-  .server__refresh-btn {
+  .server__refresh-btn,
+  .server-map {
     animation: none;
     transition: none;
   }

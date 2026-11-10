@@ -33,7 +33,7 @@ const CACHE_FILE = 'yitmc-pcl-status.json';
 $SERVERS = [
     ['id' => 'srvl',     'name' => '燕通联合服务器',   'note' => '社团主服',        'host' => 'srvl.yitmc.cn',     'display' => 'srvl.yitmc.cn',     'port' => 0,     'failPort' => 20043],
     ['id' => 'building', 'name' => '复原工程建筑服',   'note' => '校园复刻工程',    'host' => 'building.yitmc.cn', 'display' => 'building.yitmc.cn', 'port' => 0,     'failPort' => 19000],
-    ['id' => 'play',     'name' => '小游戏服务器',     'note' => '床战 · 空岛 · PVP','host' => 'play.yitmc.cn',    'display' => 'play.yitmc.cn',     'port' => 0,     'failPort' => 20091],
+    ['id' => 'parkour',  'name' => '跑酷服务器',       'note' => '跑酷',            'host' => 'parkour.uemcraft.cn','display' => 'parkour.uemcraft.cn','port' => 0,   'failPort' => 25565],
     ['id' => 'jjgl',     'name' => '津高联联合服务器', 'note' => '原版生存',        'host' => 'unioncompute.top',  'display' => 'unioncompute.***',  'port' => 26149, 'failPort' => 26149],
     ['id' => 'mua',      'name' => 'MUA Lobby',        'note' => 'MUA 高校联盟大厅', 'host' => 'lobby.mualliance.cn','display' => 'lobby.mualliance.cn','port' => 0,    'failPort' => 25565],
 ];
@@ -460,9 +460,9 @@ foreach ($latestNews as $item) {
     $xaml .= '            <local:MyListItem Margin="-5,2,-5,2" Logo="pack://application:,,,/images/Blocks/GoldBlock.png" Title="' . xesc($title) . '" Info="' . xesc($date) . '" />' . "\n";
 }
 $xaml .= '            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">' . "\n";
-$xaml .= '                <local:MyButton Text="访问官网" Padding="13,7,13,8" Margin="0,0,10,0" Type="Clickable" EventType="打开网页" EventData="https://www.yitmc.cn/" />' . "\n";
-$xaml .= '                <local:MyButton Text="加入QQ群" Padding="13,7,13,8" Margin="0,0,10,0" Type="Clickable" EventType="打开网页" EventData="https://qm.qq.com/q/942717135" />' . "\n";
-$xaml .= '                <local:MyButton Text="社团皮肤站" Padding="13,7,13,8" Type="Clickable" EventType="打开网页" EventData="https://skin.yitmc.cn/" />' . "\n";
+$xaml .= '                <local:MyButton Text="访问官网" Padding="13,7,13,8" Margin="0,0,10,0" EventType="打开网页" EventData="https://www.yitmc.cn/" />' . "\n";
+$xaml .= '                <local:MyButton Text="加入QQ群" Padding="13,7,13,8" Margin="0,0,10,0" EventType="打开网页" EventData="https://qm.qq.com/q/942717135" />' . "\n";
+$xaml .= '                <local:MyButton Text="社团皮肤站" Padding="13,7,13,8" EventType="打开网页" EventData="https://skin.yitmc.cn/" />' . "\n";
 $xaml .= '            </StackPanel>' . "\n";
 $xaml .= '            <TextBlock Margin="0,8,0,0" FontSize="11" Foreground="{DynamicResource ColorBrush4}" Text="状态更新于 ' . xesc(date('Y-m-d H:i:s')) . '" />' . "\n";
 $xaml .= '        </StackPanel>' . "\n";

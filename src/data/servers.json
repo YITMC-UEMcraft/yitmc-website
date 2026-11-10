@@ -17,10 +17,10 @@
       "edition": "java"
     },
     {
-      "id": "play",
-      "name": "小游戏服务器",
-      "note": "床战 · 空岛 · PVP",
-      "address": "play.yitmc.cn",
+      "id": "parkour",
+      "name": "跑酷服务器",
+      "note": "跑酷",
+      "address": "parkour.uemcraft.cn",
       "port": 0,
       "edition": "java"
     },
