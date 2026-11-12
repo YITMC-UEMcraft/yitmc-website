@@ -1,27 +1,32 @@
 <template>
-  <transition name="mascot-dock">
-    <aside v-if="visible" class="mascot-dock" aria-label="社团娘">
+  <transition :name="`mascot-dock-${side}`">
+    <aside
+      v-if="visible"
+      class="mascot-dock"
+      :class="`mascot-dock--${side}`"
+      :aria-label="name"
+    >
       <!-- 收起态：只留一个小头像入口 -->
       <button
         v-if="collapsed"
         type="button"
         class="mascot-dock__tab"
-        aria-label="展开社团娘"
+        :aria-label="`展开${name}`"
         @click="collapsed = false"
       >
-        <img src="/mascot/club-chan.webp" alt="YITMC 社团娘" />
-        <span class="mascot-dock__tab-label">社团娘</span>
+        <img :src="image" :alt="name" />
+        <span class="mascot-dock__tab-label">{{ name }}</span>
       </button>
 
       <!-- 展开态：像素风悬浮窗 -->
       <div v-else class="mascot-dock__window">
         <div class="mascot-dock__titlebar">
           <span class="mascot-dock__dot" aria-hidden="true"></span>
-          <span class="mascot-dock__title">社团娘</span>
+          <span class="mascot-dock__title">{{ name }}</span>
           <button
             type="button"
             class="mascot-dock__min"
-            aria-label="收起社团娘"
+            :aria-label="`收起${name}`"
             title="收起"
             @click="collapsed = true"
           >—</button>
@@ -29,16 +34,16 @@
 
         <div class="mascot-dock__body">
           <img
-            src="/mascot/club-chan.webp"
-            alt="YITMC 社团娘（社团吉祥物）"
+            :src="image"
+            :alt="`YITMC ${role} ${name}`"
             class="mascot-dock__avatar"
             decoding="async"
           />
         </div>
 
         <div class="mascot-dock__nameplate">
-          <span class="mascot-dock__name">社团娘</span>
-          <span class="mascot-dock__role">社团吉祥物</span>
+          <span class="mascot-dock__name">{{ name }}</span>
+          <span class="mascot-dock__role">{{ role }}</span>
         </div>
       </div>
     </aside>
@@ -48,6 +53,17 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+
+defineProps<{
+  /** 悬浮窗所在侧，左右各一个 */
+  side: 'left' | 'right'
+  /** 吉祥物名字 */
+  name: string
+  /** 身份标注 */
+  role: string
+  /** 立绘地址（publicDir: img） */
+  image: string
+}>()
 
 const route = useRoute()
 const router = useRouter()
@@ -128,13 +144,21 @@ onBeforeUnmount(cleanup)
 <style scoped>
 .mascot-dock {
   position: fixed;
-  right: var(--space-lg);
   bottom: calc(var(--space-lg) + env(safe-area-inset-bottom, 0px));
   z-index: 90;
   width: clamp(140px, 10vw, 180px);
   display: flex;
-  justify-content: flex-end;
   will-change: transform, opacity;
+}
+
+.mascot-dock--right {
+  right: var(--space-lg);
+  justify-content: flex-end;
+}
+
+.mascot-dock--left {
+  left: var(--space-lg);
+  justify-content: flex-start;
 }
 
 .mascot-dock__window {
@@ -158,6 +182,11 @@ onBeforeUnmount(cleanup)
   border-bottom: var(--border-width-sm) solid var(--color-surface-light);
 }
 
+/* 左侧窗口做镜像，和右侧对称 */
+.mascot-dock--left .mascot-dock__titlebar {
+  flex-direction: row-reverse;
+}
+
 .mascot-dock__dot {
   width: 6px;
   height: 6px;
@@ -174,6 +203,10 @@ onBeforeUnmount(cleanup)
   line-height: 1.4;
   color: var(--color-text);
   text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.5);
+}
+
+.mascot-dock--left .mascot-dock__title {
+  text-align: right;
 }
 
 .mascot-dock__min {
@@ -210,7 +243,6 @@ onBeforeUnmount(cleanup)
   max-height: min(46vh, 320px);
   object-fit: contain;
   object-position: bottom center;
-  image-rendering: auto;
 }
 
 .mascot-dock__nameplate {
@@ -223,18 +255,24 @@ onBeforeUnmount(cleanup)
   border-top: var(--border-width-sm) solid var(--color-surface-light);
 }
 
+.mascot-dock--left .mascot-dock__nameplate {
+  flex-direction: row-reverse;
+}
+
 .mascot-dock__name {
   font-family: var(--font-display);
   font-size: var(--text-base);
   line-height: 1.2;
   color: var(--color-accent-hover);
   text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
 }
 
 .mascot-dock__role {
   font-size: var(--text-xs);
   color: var(--color-text-muted);
   letter-spacing: 0.05em;
+  white-space: nowrap;
 }
 
 /* 收起态 */
@@ -281,28 +319,56 @@ onBeforeUnmount(cleanup)
   50% { opacity: 0.35; }
 }
 
-/* 出现 / 消失：从右边滑入 */
-.mascot-dock-enter-active,
-.mascot-dock-leave-active {
+/* 出现 / 消失：右侧从右滑入，左侧从左滑入 */
+.mascot-dock-left-enter-active,
+.mascot-dock-left-leave-active,
+.mascot-dock-right-enter-active,
+.mascot-dock-right-leave-active {
   transition: opacity var(--duration-slow) var(--ease-apple-out),
               transform var(--duration-slow) var(--ease-apple-out);
 }
 
-.mascot-dock-enter-from,
-.mascot-dock-leave-to {
+.mascot-dock-left-enter-from,
+.mascot-dock-left-leave-to {
+  opacity: 0;
+  transform: translate3d(-32px, 16px, 0);
+}
+
+.mascot-dock-right-enter-from,
+.mascot-dock-right-leave-to {
   opacity: 0;
   transform: translate3d(32px, 16px, 0);
 }
 
 @media (max-width: 768px) {
   .mascot-dock {
-    right: var(--space-md);
     bottom: calc(var(--space-md) + env(safe-area-inset-bottom, 0px));
-    width: clamp(96px, 26vw, 124px);
+    width: clamp(88px, 24vw, 118px);
+  }
+
+  .mascot-dock--right {
+    right: var(--space-md);
+  }
+
+  .mascot-dock--left {
+    left: var(--space-md);
+  }
+
+  .mascot-dock__title {
+    font-size: 0.6875rem;
+  }
+
+  .mascot-dock__min {
+    width: 16px;
+    height: 16px;
   }
 
   .mascot-dock__avatar {
-    max-height: 34vh;
+    max-height: 30vh;
+  }
+
+  .mascot-dock__name {
+    font-size: var(--text-sm);
   }
 
   .mascot-dock__role {
@@ -312,7 +378,7 @@ onBeforeUnmount(cleanup)
 
 @media (max-height: 520px) {
   .mascot-dock__avatar {
-    max-height: 40vh;
+    max-height: 32vh;
   }
 }
 </style>

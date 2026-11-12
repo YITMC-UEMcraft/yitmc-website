@@ -5,7 +5,8 @@
         <component :is="Component" />
       </transition>
     </router-view>
-    <MascotDock />
+    <MascotDock side="left" name="沃伦" role="社团吉祥物" image="/mascot/warren.webp" />
+    <MascotDock side="right" name="沃蒂娜" role="社团娘" image="/mascot/vodina.webp" />
   </div>
 </template>
 
