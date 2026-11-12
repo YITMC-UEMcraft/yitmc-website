@@ -546,7 +546,7 @@ onMounted(refreshAll)
 /* ---- 区块 ---- */
 .server {
   padding: var(--space-section) 0;
-  background: rgba(45, 45, 45, 0.35);
+  background: var(--color-section-alt);
 }
 
 .server__inner {

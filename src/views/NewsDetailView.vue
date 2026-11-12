@@ -15,6 +15,9 @@
             <span class="news-detail__date">
               <AppIcon name="calendar" :size="14" /> {{ item.date }}
             </span>
+            <span v-if="viewCount !== null" class="news-detail__views">
+              <AppIcon name="eye" :size="14" /> {{ formatViews(viewCount) }}
+            </span>
           </div>
 
           <h1 class="news-detail__title">{{ item.title }}</h1>
@@ -45,7 +48,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, watchEffect } from 'vue'
+import { computed, onMounted, ref, watch, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PixelBackground from '@/components/layout/PixelBackground.vue'
 import AppHeader from '@/components/layout/AppHeader.vue'
@@ -55,6 +58,7 @@ import AppIcon from '@/components/icons/AppIcon.vue'
 import { newsData } from '@/data'
 import { newsTypeMeta } from '@/lib/news'
 import { setSeo, SITE_URL } from '@/lib/seo'
+import { formatViews, recordNewsView } from '@/lib/views'
 
 const route = useRoute()
 const router = useRouter()
@@ -63,6 +67,15 @@ const item = computed(() =>
   newsData.news.find((n) => String(n.id) === String(route.params.id)),
 )
 const typeMeta = computed(() => newsTypeMeta(item.value?.type || ''))
+const viewCount = ref<number | null>(null)
+
+watch(item, (news) => {
+  if (!news) return
+  viewCount.value = null
+  recordNewsView(news.id)
+    .then((count) => { viewCount.value = count })
+    .catch(() => { /* 浏览量失败不影响阅读 */ })
+}, { immediate: true })
 const index = computed(() =>
   item.value ? newsData.news.findIndex((n) => n.id === item.value!.id) : -1,
 )
@@ -155,7 +168,8 @@ watchEffect(() => {
 }
 
 .news-detail__type,
-.news-detail__date {
+.news-detail__date,
+.news-detail__views {
   display: inline-flex;
   align-items: center;
   gap: 4px;

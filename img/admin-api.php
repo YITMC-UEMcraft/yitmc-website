@@ -159,18 +159,22 @@ function loadDataFiles(): array
 }
 
 /* ---------- 留言墙 ---------- */
-function wallPath(): string
+/** 优先放到网站根目录之外；私密目录不可用时退到系统临时目录 */
+function privateDataPath(string $name): string
 {
-    // 优先放到网站根目录之外，避免待审核留言与限流哈希被直接下载
     $privateDir = dirname(__DIR__) . '/yitmc-admin';
     if (!is_dir($privateDir)) {
         @mkdir($privateDir, 0755, true);
     }
     if (is_dir($privateDir) && is_writable($privateDir)) {
-        return $privateDir . '/wall.json';
+        return $privateDir . '/' . $name;
     }
-    // 私密目录不可用时退到系统临时目录，绝不放回可公开访问的 data/
-    return sys_get_temp_dir() . '/yitmc-wall-' . md5(__DIR__) . '.json';
+    return sys_get_temp_dir() . '/yitmc-' . $name . '-' . md5(__DIR__) . '.json';
+}
+
+function wallPath(): string
+{
+    return privateDataPath('wall.json');
 }
 
 function wallDirWritable(): bool
@@ -287,6 +291,80 @@ function sortWallMessages(array $messages): array
         return $tb <=> $ta;
     });
     return $messages;
+}
+
+/* ---------- 资讯浏览量 ---------- */
+function viewsPath(): string
+{
+    return privateDataPath('news-views.json');
+}
+
+function readNewsViews(): array
+{
+    $path = viewsPath();
+    if (!is_file($path)) {
+        return [];
+    }
+    $fh = @fopen($path, 'c+');
+    if (!$fh) {
+        return [];
+    }
+    $counts = [];
+    if (flock($fh, LOCK_SH)) {
+        $raw = stream_get_contents($fh);
+        $decoded = $raw !== false ? json_decode($raw, true) : null;
+        if (is_array($decoded)) {
+            foreach ($decoded as $key => $value) {
+                if (ctype_digit((string) $key)) {
+                    $counts[(string) $key] = (int) $value;
+                }
+            }
+        }
+        flock($fh, LOCK_UN);
+    }
+    fclose($fh);
+    return $counts;
+}
+
+function withNewsViews(callable $callback)
+{
+    $path = viewsPath();
+    $dir = dirname($path);
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0755, true);
+    }
+    if (!is_dir($dir) || !is_writable($dir)) {
+        fail('服务器浏览量目录不可写，请联系维护者', 500);
+    }
+    $fh = @fopen($path, 'c+');
+    if (!$fh) {
+        fail('无法打开浏览量数据，请稍后重试', 500);
+    }
+    if (!flock($fh, LOCK_EX)) {
+        fclose($fh);
+        fail('浏览量数据繁忙，请稍后重试', 503);
+    }
+    $raw = stream_get_contents($fh);
+    $decoded = $raw !== false ? json_decode($raw, true) : null;
+    $data = [];
+    if (is_array($decoded)) {
+        foreach ($decoded as $key => $value) {
+            if (ctype_digit((string) $key)) {
+                $data[(string) $key] = (int) $value;
+            }
+        }
+    }
+    $result = $callback($data);
+    $encoded = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+    if ($encoded !== false) {
+        rewind($fh);
+        ftruncate($fh, 0);
+        fwrite($fh, $encoded . "\n");
+        fflush($fh);
+    }
+    flock($fh, LOCK_UN);
+    fclose($fh);
+    return $result;
 }
 
 /* ---------- 图片库 ---------- */
@@ -466,6 +544,37 @@ switch ($action) {
             fail('待审核留言较多，请稍后再试', 503);
         }
         respond(['ok' => true, 'status' => 'pending']);
+
+    /* ===== 资讯浏览量 ===== */
+    case 'news_views':
+        respond(['ok' => true, 'counts' => (object) readNewsViews()]);
+
+    case 'news_view':
+        requireSameOrigin();
+        $input = !empty($GLOBALS['jsonBody']) ? $GLOBALS['jsonBody'] : $_POST;
+        $id = trim((string) ($input['id'] ?? ''));
+        if ($id === '' || !ctype_digit($id)) {
+            fail('参数错误', 400);
+        }
+        $now = time();
+        if (!isset($_SESSION['yitmc_news_views']) || !is_array($_SESSION['yitmc_news_views'])) {
+            $_SESSION['yitmc_news_views'] = [];
+        }
+        foreach ($_SESSION['yitmc_news_views'] as $key => $timestamp) {
+            if ($now - (int) $timestamp > 86400) {
+                unset($_SESSION['yitmc_news_views'][$key]);
+            }
+        }
+        if (isset($_SESSION['yitmc_news_views'][$id]) && $now - (int) $_SESSION['yitmc_news_views'][$id] < 21600) {
+            $counts = readNewsViews();
+            respond(['ok' => true, 'count' => (int) ($counts[$id] ?? 0), 'counted' => false]);
+        }
+        $count = withNewsViews(function (array &$data) use ($id) {
+            $data[$id] = (int) ($data[$id] ?? 0) + 1;
+            return $data[$id];
+        });
+        $_SESSION['yitmc_news_views'][$id] = $now;
+        respond(['ok' => true, 'count' => (int) $count, 'counted' => true]);
 
     case 'login':
         $fails = isset($_SESSION['yitmc_fails']) ? (int) $_SESSION['yitmc_fails'] : 0;

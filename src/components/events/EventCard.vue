@@ -85,7 +85,7 @@ const internalLink = computed(() => props.event.link.startsWith('/'))
   padding: 2px var(--space-sm);
   font-size: var(--text-xs);
   border: var(--border-width-sm) solid;
-  background: rgba(26, 26, 26, 0.85);
+  background: var(--color-overlay);
 }
 
 .event-card__status--upcoming {

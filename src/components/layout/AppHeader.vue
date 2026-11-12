@@ -13,9 +13,12 @@
         <a :href="config.skinStationUrl" target="_blank" rel="noopener" class="app-header__link" @click="menuOpen = false">皮肤站</a>
       </nav>
 
-      <button class="app-header__burger" @click="menuOpen = !menuOpen" aria-label="Toggle menu">
-        <span></span><span></span><span></span>
-      </button>
+      <div class="app-header__actions">
+        <ThemeToggle />
+        <button class="app-header__burger" @click="menuOpen = !menuOpen" aria-label="Toggle menu">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
     </div>
   </header>
 </template>
@@ -23,6 +26,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { siteConfig } from '@/data'
+import ThemeToggle from '@/components/layout/ThemeToggle.vue'
 
 const menuOpen = ref(false)
 const scrolled = ref(false)
@@ -63,7 +67,7 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll))
 }
 
 .app-header--scrolled {
-  background: rgba(26, 26, 26, 0.95);
+  background: var(--color-bg-translucent);
   border-bottom-color: var(--color-accent-dim);
 }
 
@@ -119,6 +123,13 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll))
   color: var(--color-accent) !important;
   border-color: var(--color-accent);
   background: rgba(92, 154, 59, 0.1);
+}
+
+.app-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex: none;
 }
 
 .app-header__burger {

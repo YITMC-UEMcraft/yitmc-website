@@ -35,6 +35,13 @@
     var(--shadow-pixel);
 }
 
+[data-theme='light'] .block-inset {
+  box-shadow:
+    inset 2px 2px 0px rgba(255, 255, 255, 0.7),
+    inset -2px -2px 0px rgba(90, 72, 45, 0.12),
+    var(--shadow-pixel);
+}
+
 /* Pixelated corners */
 .pixel-corners {
   clip-path: polygon(

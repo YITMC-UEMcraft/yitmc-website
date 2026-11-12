@@ -5,6 +5,17 @@
     <link rel="icon" type="image/png" href="/logo/logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#1a1a1a" />
+    <script>
+      (function () {
+        try {
+          var theme = localStorage.getItem('yitmc-theme')
+          if (theme === 'light' || theme === 'dark') {
+            document.documentElement.setAttribute('data-theme', theme)
+            document.documentElement.style.colorScheme = theme
+          }
+        } catch (e) {}
+      })()
+    </script>
     <meta name="description" content="燕京理工学院MC玩家创作协会(YITMC)官方网站 - 我的世界校园复刻工程展示与社团招新" />
     <meta property="og:site_name" content="YITMC" />
     <meta property="og:type" content="website" />

@@ -8,7 +8,12 @@
       <div class="timeline__card block-inset">
         <div class="timeline__header">
           <span class="timeline__type" :class="`timeline__type--${item.type}`"><AppIcon :name="newsTypeMeta(item.type).icon" :size="14" /> {{ newsTypeMeta(item.type).label }}</span>
-          <span class="timeline__date">{{ item.date }}</span>
+          <span class="timeline__meta">
+            <span v-if="views[String(item.id)] !== undefined" class="timeline__views">
+              <AppIcon name="eye" :size="12" /> {{ formatViews(views[String(item.id)]) }}
+            </span>
+            <span class="timeline__date">{{ item.date }}</span>
+          </span>
         </div>
         <img v-if="item.image" :src="item.image" :alt="item.title" loading="lazy" class="timeline__pic" />
         <h3 class="timeline__title">
@@ -22,11 +27,22 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted, ref } from 'vue'
 import AppIcon from '@/components/icons/AppIcon.vue'
 import { newsData } from '@/data'
 import { newsTypeMeta } from '@/lib/news'
+import { fetchNewsViews, formatViews } from '@/lib/views'
 
 const newsItems = newsData.news
+const views = ref<Record<string, number>>({})
+
+onMounted(async () => {
+  try {
+    views.value = await fetchNewsViews()
+  } catch {
+    // 浏览量接口不可用时保持隐藏
+  }
+})
 </script>
 
 <style scoped>
@@ -87,6 +103,20 @@ const newsItems = newsData.news
 .timeline__type--project { color: var(--color-accent); border-color: var(--color-accent-dim); }
 .timeline__type--achievement { color: var(--color-gold); border-color: var(--color-gold-dim); }
 .timeline__type--event { color: var(--color-water); border-color: var(--color-water); }
+
+.timeline__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.timeline__views {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
 
 .timeline__date {
   font-size: var(--text-xs);

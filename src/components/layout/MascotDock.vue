@@ -314,7 +314,7 @@ onBeforeUnmount(cleanup)
   font-size: 9px;
   line-height: 1.4;
   text-align: center;
-  color: var(--color-text);
+  color: #f2ecdc;
 }
 
 @keyframes mascotBlink {
