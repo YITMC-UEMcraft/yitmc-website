@@ -4,7 +4,7 @@
 
     <form v-else-if="phase === 'login'" class="admin__login" @submit.prevent="login">
       <h1>YITMC 网站内容管理</h1>
-      <p class="admin__tip">请输入管理密码（由上一任社长或管理员提供）</p>
+      <p class="admin__tip">皮肤站管理员登录官网后可直接进入；也可以输入管理密码。</p>
       <input v-model="password" type="password" placeholder="管理密码" autocomplete="current-password" />
       <button type="submit" :disabled="busy || !password">登 录</button>
       <p v-if="msg" class="admin__msg" :class="{ 'is-error': isError }">{{ msg }}</p>
@@ -14,12 +14,15 @@
     <template v-else>
       <header class="admin__bar">
         <strong>YITMC 内容管理</strong>
+        <span v-if="adminVia === 'oidc'" class="admin__identity">
+          {{ adminName }} · {{ adminRole === 'super_admin' ? '超级管理员' : '管理员' }}（皮肤站）
+        </span>
         <span class="admin__bar-tip">保存后刷新网站即可看到最新内容</span>
         <button type="button" @click="logout">退出登录</button>
       </header>
 
       <nav class="admin__tabs">
-        <button v-for="t in tabs" :key="t.key" type="button"
+        <button v-for="t in visibleTabs" :key="t.key" type="button"
           :class="{ 'is-active': tab === t.key }" @click="tab = t.key">{{ t.label }}</button>
       </nav>
 
@@ -237,6 +240,7 @@
               <label><span>职务</span><input v-model="m.role" placeholder="如：社长、技术部长" /></label>
               <label><span>年级</span><input v-model="m.grade" placeholder="如 2026级" /></label>
               <label><span>编号 ID</span><input v-model.number="m.id" /></label>
+              <label><span>关联档案 ID（可留空）</span><input v-model.number="m.profileId" type="number" min="1" placeholder="皮肤站用户档案 ID" /></label>
             </div>
             <label class="wide"><span>个人介绍</span><textarea v-model="m.description" rows="2"></textarea></label>
             <div class="image-field">
@@ -527,6 +531,9 @@ const password = ref('')
 const msg = ref('')
 const isError = ref(false)
 const tab = ref('overview')
+const adminVia = ref<'password' | 'oidc'>('password')
+const adminRole = ref('super_admin')
+const adminName = ref('')
 const pw = reactive({ oldPw: '', newPw: '', newPw2: '' })
 // eslint-disable-next-line
 const dataFiles = ref<Record<string, any>>({})
@@ -554,6 +561,10 @@ const docCategories = computed<string[]>(() =>
   [...new Set<string>(docs.value.docs.map((d: any) => String(d.category || '')).filter(Boolean))],
 )
 const docPreview = reactive<Record<number, boolean>>({})
+
+const visibleTabs = computed(() =>
+  tabs.filter((item) => item.key !== 'settings' || adminVia.value === 'password'),
+)
 
 function flash(text: string, error = false) {
   msg.value = text
@@ -613,6 +624,9 @@ function enterEditor(st: any) {
   if (!Array.isArray(pclDataFile.vars)) pclDataFile.vars = []
 
   dataFiles.value = files
+  adminVia.value = st.via === 'oidc' ? 'oidc' : 'password'
+  adminRole.value = st.role || 'super_admin'
+  adminName.value = st.adminName || ''
   phase.value = 'ready'
   loadOverview()
 }
@@ -640,7 +654,13 @@ async function login() {
 
 async function logout() {
   await api({ action: 'logout' }).catch(() => {})
+  if (adminVia.value === 'oidc') {
+    await api({ action: 'oidc_logout' }).catch(() => {})
+  }
   dataFiles.value = {}
+  adminVia.value = 'password'
+  adminRole.value = 'super_admin'
+  adminName.value = ''
   phase.value = 'login'
 }
 
@@ -650,6 +670,11 @@ async function save(file: string) {
       (card: any) => String(card.title || '').trim() || card.rows?.length || card.buttons?.length,
     )
     pcl.value.vars = (pcl.value.vars || []).filter((item: any) => String(item.key || '').trim())
+  }
+  if (file === 'members.json') {
+    members.value.leadership.forEach((member: any) => {
+      if (!member.profileId) delete member.profileId
+    })
   }
   if (file === 'servers.json') {
     const invalid = servers.value.servers.some(
@@ -999,6 +1024,7 @@ onMounted(bootstrap)
 .admin__back { color: #8a887b; font-size: 13px; }
 .admin__bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid #2a2d34; padding-bottom: 12px; margin-bottom: 16px; }
 .admin__bar-tip { color: #9a9788; font-size: 12px; flex: 1; }
+.admin__identity { padding: 3px 9px; border: 1px solid #2d6b4a; border-radius: 999px; color: #7fd8ab; font-size: 12px; }
 .admin__bar button { background: transparent; border: 1px solid #4a4d55; color: inherit; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
 .admin__tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
 .admin__tabs button { border: 1px solid #3a3d45; background: #171a20; color: #b9b6a7; padding: 8px 14px; border-radius: 999px; cursor: pointer; font-size: 14px; }

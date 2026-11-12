@@ -37,6 +37,14 @@
             </RouterLink>
             <p v-else class="account-private-hint">公开主页已关闭</p>
 
+            <RouterLink
+              v-if="user.siteRole === 'admin' || user.siteRole === 'super_admin'"
+              to="/admin"
+              class="account-admin-link"
+            >
+              进入官网管理（{{ user.siteRole === 'super_admin' ? '超级管理员' : '管理员' }}） →
+            </RouterLink>
+
             <button type="button" class="account-logout" @click="doLogout">退出登录</button>
           </aside>
 
@@ -343,6 +351,15 @@ onMounted(async () => {
   margin-top: var(--space-md);
   font-size: var(--text-sm);
   color: var(--color-text-muted);
+}
+
+.account-admin-link {
+  display: block;
+  margin-top: var(--space-md);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--text-sm);
+  color: var(--color-gold);
+  border: var(--border-width-sm) solid var(--color-gold-dim);
 }
 
 .account-logout {

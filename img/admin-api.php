@@ -60,11 +60,22 @@ function fail(string $message, int $code = 400, string $errorCode = ''): void
     respond(['ok' => false, 'error' => $message, 'code' => $errorCode], $code);
 }
 
+function currentOidcAdmin(): ?array
+{
+    $user = currentOidcUser();
+    if (!$user) {
+        return null;
+    }
+    $role = (string) ($user['siteRole'] ?? 'user');
+    return in_array($role, ['admin', 'super_admin'], true) ? $user : null;
+}
+
 function requireAuth(): void
 {
-    if (empty($_SESSION['yitmc_admin'])) {
-        fail('未登录或登录已过期', 401, 'AUTH_REQUIRED');
+    if (!empty($_SESSION['yitmc_admin']) || currentOidcAdmin()) {
+        return;
     }
+    fail('未登录或登录已过期', 401, 'AUTH_REQUIRED');
 }
 
 /** 只接受本站来源的写请求，降低 CSRF 风险（无 Origin 的非浏览器请求放行） */
@@ -438,6 +449,7 @@ function oidcConfig(): array
         'client_secret' => '',
         'redirect_uri' => 'https://www.yitmc.cn/admin-api.php?action=oidc_callback',
         'scopes' => 'openid profile email Yggdrasil.PlayerProfiles.Read',
+        'role_endpoint' => 'https://skin.yitmc.cn/yitmc-admins.php',
         'public_client' => false,
     ];
     // 优先读取 webroot 外的 JSON 凭证（无需执行 PHP，便于安全写入）
@@ -575,6 +587,29 @@ function oidcUserinfo(string $url, string $token): ?array
         return is_array($res['json']) ? $res['json'] : null;
     }
     return null;
+}
+
+/** 查询皮肤站角色：0 普通 / 1 管理员 / 2 超级管理员；查询失败返回 null */
+function fetchSkinRole(string $sub): ?int
+{
+    if (!ctype_digit($sub)) {
+        return 0;
+    }
+    $cfg = oidcConfig();
+    $endpoint = (string) ($cfg['role_endpoint'] ?? '');
+    if (!preg_match('#^https://skin\.(?:yitmc|uemcraft)\.cn/#i', $endpoint)) {
+        return null;
+    }
+    $res = oidcHttp('GET', $endpoint, ['Accept: application/json']);
+    if ($res['status'] !== 200 || !is_array($res['json']) || empty($res['json']['ok']) || !is_array($res['json']['admins'] ?? null)) {
+        error_log('[oidc] role lookup failed: status=' . $res['status']);
+        return null;
+    }
+    $admins = $res['json']['admins'];
+    if (!array_key_exists($sub, $admins)) {
+        return 0;
+    }
+    return max(0, min(2, (int) $admins[$sub]));
 }
 
 /* ==================== 用户档案 ==================== */
@@ -754,6 +789,7 @@ function publicUserView(array $user, bool $private = false): array
         $view['isPublic'] = (int) ($user['isPublic'] ?? 1);
         $view['showContact'] = (int) ($user['showContact'] ?? 0);
         $view['updatedAt'] = (int) ($user['updatedAt'] ?? 0);
+        $view['siteRole'] = (string) ($user['siteRole'] ?? 'user');
     }
     return $view;
 }
@@ -883,8 +919,12 @@ function handleOidcCallback(): void
         redirectAccount('userinfo');
     }
 
-    $userId = withUsers(function (array &$data) use ($info, $sub) {
+    $skinPermission = fetchSkinRole($sub);
+    $userId = withUsers(function (array &$data) use ($info, $sub, $skinPermission) {
         $now = time();
+        $siteRole = $skinPermission === null
+            ? null
+            : ($skinPermission >= 2 ? 'super_admin' : ($skinPermission >= 1 ? 'admin' : 'user'));
         [$players, $selectedUuid, $selectedName] = extractPlayers($info);
         $nickname = trim((string) ($info['nickname'] ?? $info['preferred_username'] ?? ''));
         $picture = trim((string) ($info['picture'] ?? ''));
@@ -907,6 +947,10 @@ function handleOidcCallback(): void
                 $data['users'][$index]['playerUuid'] = $selectedUuid;
                 $data['users'][$index]['playerName'] = $selectedName;
             }
+            if ($siteRole !== null) {
+                $data['users'][$index]['skinPermission'] = $skinPermission;
+                $data['users'][$index]['siteRole'] = $siteRole;
+            }
             $data['users'][$index]['lastLoginAt'] = $now;
             $data['users'][$index]['updatedAt'] = $now;
             return (int) ($user['id'] ?? 0);
@@ -927,6 +971,8 @@ function handleOidcCallback(): void
             'socialLinks' => [],
             'isPublic' => 1,
             'showContact' => 0,
+            'skinPermission' => $skinPermission ?? 0,
+            'siteRole' => $siteRole ?? 'user',
             'createdAt' => $now,
             'updatedAt' => $now,
             'lastLoginAt' => $now,
@@ -1222,7 +1268,16 @@ switch ($action) {
 
     case 'state':
         requireAuth();
-        respond(['ok' => true, 'files' => loadDataFiles(), 'pwIsDefault' => $DEFAULT_PASSWORD !== '' && storedPasswordHash() === null]);
+        $passwordAdmin = !empty($_SESSION['yitmc_admin']);
+        $oidcAdmin = $passwordAdmin ? null : currentOidcAdmin();
+        respond([
+            'ok' => true,
+            'files' => loadDataFiles(),
+            'pwIsDefault' => $DEFAULT_PASSWORD !== '' && storedPasswordHash() === null,
+            'via' => $passwordAdmin ? 'password' : 'oidc',
+            'role' => $passwordAdmin ? 'super_admin' : (string) ($oidcAdmin['siteRole'] ?? 'user'),
+            'adminName' => $passwordAdmin ? '' : (string) ($oidcAdmin['nickname'] ?? ''),
+        ]);
 
     /* ===== 留言墙管理 ===== */
     case 'wall_admin_list':
@@ -1408,6 +1463,9 @@ switch ($action) {
     case 'password':
         requireAuth();
         requireSameOrigin();
+        if (empty($_SESSION['yitmc_admin'])) {
+            fail('请使用管理密码登录后再修改密码', 403);
+        }
         $input = !empty($GLOBALS['jsonBody']) ? $GLOBALS['jsonBody'] : $_POST;
         $oldPw = isset($input['oldPassword']) ? (string) $input['oldPassword'] : '';
         $newPw = isset($input['newPassword']) ? (string) $input['newPassword'] : '';

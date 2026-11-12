@@ -23,6 +23,7 @@ export interface AuthUser {
   players?: PlayerProfile[]
   isPublic?: number
   showContact?: number
+  siteRole?: 'user' | 'admin' | 'super_admin' | string
   createdAt: number
 }
 

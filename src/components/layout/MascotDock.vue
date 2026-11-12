@@ -152,6 +152,8 @@ onBeforeUnmount(cleanup)
   width: clamp(140px, 10vw, 180px);
   display: flex;
   will-change: transform, opacity;
+  /* 装饰层默认不拦截点击，避免遮住页脚等按钮 */
+  pointer-events: none;
 }
 
 .mascot-dock--right {
@@ -225,6 +227,7 @@ onBeforeUnmount(cleanup)
   font-size: var(--text-sm);
   line-height: 1;
   cursor: pointer;
+  pointer-events: auto;
   transition: all var(--duration-fast) var(--ease-pixel);
 }
 
@@ -289,6 +292,7 @@ onBeforeUnmount(cleanup)
   border: var(--border-width-sm) solid var(--color-brown);
   box-shadow: var(--shadow-pixel-sm);
   cursor: pointer;
+  pointer-events: auto;
   transition: transform 0.2s var(--ease-spring);
 }
 

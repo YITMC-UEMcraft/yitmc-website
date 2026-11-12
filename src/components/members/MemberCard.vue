@@ -8,6 +8,9 @@
     <span v-if="member.role" class="member-card__role">{{ member.role }}</span>
     <p v-if="member.description" class="member-card__desc">{{ member.description }}</p>
     <span v-if="member.grade" class="member-card__grade">{{ member.grade }}</span>
+    <RouterLink v-if="member.profileId" :to="`/profile/${member.profileId}`" class="member-card__profile">
+      个人主页 →
+    </RouterLink>
   </div>
 </template>
 
@@ -22,6 +25,7 @@ const props = defineProps<{
     avatar: string
     description: string
     grade: string
+    profileId?: number
   }
 }>()
 
@@ -83,7 +87,22 @@ const initial = computed(() => props.member.name.charAt(0))
 }
 
 .member-card__grade {
+  display: block;
   font-size: var(--text-xs);
   color: var(--color-brown);
+}
+
+.member-card__profile {
+  display: inline-block;
+  margin-top: var(--space-md);
+  padding: var(--space-xs) var(--space-md);
+  font-size: var(--text-xs);
+  color: var(--color-accent);
+  border: var(--border-width-sm) solid var(--color-accent-dim);
+}
+
+.member-card__profile:hover {
+  border-color: var(--color-accent);
+  background: rgba(92, 154, 59, 0.1);
 }
 </style>
