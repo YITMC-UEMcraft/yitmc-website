@@ -76,6 +76,15 @@ const router = createRouter({
       meta: { title: '指南与文档 - YITMC' },
     },
     {
+      path: '/wall',
+      name: 'wall',
+      component: () => import('@/views/WallView.vue'),
+      meta: {
+        title: '留言墙 - YITMC',
+        description: 'YITMC 留言墙：留下你的足迹，与同好们分享想法与祝福。',
+      },
+    },
+    {
       path: '/members',
       name: 'members',
       component: () => import('@/views/MembersView.vue'),

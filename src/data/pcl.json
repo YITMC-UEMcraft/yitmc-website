@@ -1,0 +1,10 @@
+{
+  "title": "燕京理工学院 MC 玩家创作协会",
+  "intro": "欢迎加入 YITMC！点击下方服务器卡片中的地址即可复制，状态数据每次启动自动更新。",
+  "newsCount": 2,
+  "links": [
+    { "label": "访问官网", "url": "https://www.yitmc.cn/" },
+    { "label": "加入QQ群", "url": "https://qm.qq.com/q/942717135" },
+    { "label": "社团皮肤站", "url": "https://skin.yitmc.cn/" }
+  ]
+}

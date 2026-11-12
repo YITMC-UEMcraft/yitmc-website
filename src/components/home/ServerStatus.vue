@@ -170,7 +170,7 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
-import { servers, type McServerConfig } from '@/data'
+import { serversData, type McServerConfig } from '@/data'
 import AppIcon from '@/components/icons/AppIcon.vue'
 
 /* ---------------- 配置 ---------------- */
@@ -216,7 +216,7 @@ const MINETOOLS_API = 'https://api.minetools.eu/ping/'
 // 同源状态代理（status-api.php）：由官网服务器直查并缓存，优先于海外公共 API
 const LOCAL_STATUS_API = '/status-api.php'
 
-const entries = reactive<ServerEntry[]>(servers.map((config) => ({
+const entries = reactive<ServerEntry[]>(serversData.servers.map((config) => ({
   config,
   loading: true,
   progress: 5,
@@ -232,13 +232,13 @@ const lastUpdated = ref('')
 
 /** 显示地址（隐藏地址的服务器只展示打码形式） */
 function displayAddress(config: McServerConfig): string {
-  const addr = config.displayAddress ?? config.address
+  const addr = config.displayAddress || config.address
   return config.port ? `${addr}:${config.port}` : addr
 }
 
 /** 复制内容与 uemcraft 一致：`地址 -p 端口`（无自定义端口则只复制地址） */
 function copyFormat(config: McServerConfig): string {
-  const addr = config.displayAddress ?? config.address
+  const addr = config.displayAddress || config.address
   return config.port ? `${addr} -p ${config.port}` : addr
 }
 

@@ -24,6 +24,44 @@
       </nav>
 
       <main class="admin__main">
+        <section v-show="tab === 'overview'">
+          <h2>概览</h2>
+          <p class="hint">当前站点内容与待处理事项。点击卡片可直接跳到对应模块。</p>
+          <div class="overview-grid">
+            <button type="button" class="overview-card" @click="tab = 'works'">
+              <b>{{ works.works.length }}</b><span>作品</span>
+            </button>
+            <button type="button" class="overview-card" @click="tab = 'news'">
+              <b>{{ news.news.length }}</b><span>动态</span>
+            </button>
+            <button type="button" class="overview-card" @click="tab = 'events'">
+              <b>{{ events.events.length }}</b><span>活动</span>
+            </button>
+            <button type="button" class="overview-card" @click="tab = 'docs'">
+              <b>{{ docs.docs.length }}</b><span>文档</span>
+            </button>
+            <button type="button" class="overview-card" @click="tab = 'members'">
+              <b>{{ members.leadership.length }}</b><span>成员</span>
+            </button>
+            <button type="button" class="overview-card" @click="tab = 'servers'">
+              <b>{{ servers.servers.length }}</b><span>服务器</span>
+            </button>
+            <button type="button" class="overview-card" :class="{ 'is-alert': overview.pending > 0 }" @click="tab = 'wall'">
+              <b>{{ overview.pending }}</b><span>待审留言</span>
+            </button>
+            <button type="button" class="overview-card" @click="tab = 'images'">
+              <b>{{ overview.images }}</b><span>图片</span>
+            </button>
+          </div>
+          <div class="overview-actions">
+            <button type="button" class="save-btn" @click="tab = 'wall'">处理留言</button>
+            <button type="button" class="add-btn" @click="uploadToLibrary">上传图片</button>
+            <button type="button" class="add-btn" :disabled="overview.loading" @click="loadOverview">
+              {{ overview.loading ? '刷新中…' : '刷新概览' }}
+            </button>
+          </div>
+        </section>
+
         <section v-show="tab === 'site'">
           <h2>联系方式与基本信息</h2>
           <div class="field-grid">
@@ -212,6 +250,57 @@
           <button type="button" class="save-btn" :disabled="busy" @click="save('members.json')">保存「成员风采」</button>
         </section>
 
+        <section v-show="tab === 'servers'">
+          <h2>服务器</h2>
+          <p class="hint">保存后首页服务器状态、PCL 主页和状态代理会共用这份列表。port 为 0 表示自动 SRV 解析；fallbackPort 为 SRV 失败时的兜底端口。</p>
+          <div v-for="(s, i) in servers.servers" :key="'srv' + i" class="item-card">
+            <header>
+              <b>{{ s.name || '(未命名服务器)' }}</b>
+              <button type="button" class="danger" @click="del(servers.servers, i, '这台服务器')">删除</button>
+            </header>
+            <div class="field-grid">
+              <label><span>名称</span><input v-model="s.name" /></label>
+              <label><span>说明</span><input v-model="s.note" placeholder="如：社团主服" /></label>
+              <label><span>真实地址</span><input v-model="s.address" placeholder="srvl.yitmc.cn" /></label>
+              <label><span>展示地址（可留空）</span><input v-model="s.displayAddress" placeholder="留空则同真实地址" /></label>
+              <label><span>端口（0 = SRV）</span><input v-model.number="s.port" type="number" min="0" max="65535" /></label>
+              <label><span>兜底端口</span><input v-model.number="s.fallbackPort" type="number" min="0" max="65535" /></label>
+              <label><span>版本类型</span>
+                <select v-model="s.edition">
+                  <option value="java">Java 版</option>
+                  <option value="bedrock">基岩版</option>
+                </select>
+              </label>
+              <label><span>编号 ID</span><input v-model="s.id" /></label>
+            </div>
+          </div>
+          <button type="button" class="add-btn" :disabled="busy" @click="addServer">+ 添加服务器</button>
+          <button type="button" class="save-btn" :disabled="busy" @click="save('servers.json')">保存「服务器」</button>
+          <p class="hint">提示：状态探测目前只支持 Java 版；基岩版仅用于展示。</p>
+        </section>
+
+        <section v-show="tab === 'pcl'">
+          <h2>PCL 主页</h2>
+          <p class="hint">控制 PCL2 自定义主页的标题、欢迎语、新闻条数与快捷按钮。修改后 PCL2 会在下次刷新主页时读取。</p>
+          <div class="field-grid">
+            <label><span>卡片标题</span><input v-model="pcl.title" /></label>
+            <label><span>新闻条数（0–5）</span><input v-model.number="pcl.newsCount" type="number" min="0" max="5" /></label>
+          </div>
+          <label class="wide"><span>欢迎语</span><textarea v-model="pcl.intro" rows="3"></textarea></label>
+          <div v-for="(link, i) in pcl.links" :key="'pcl' + i" class="item-card">
+            <header>
+              <b>快捷按钮 {{ i + 1 }}</b>
+              <button type="button" class="danger" @click="del(pcl.links, i, '这个按钮')">删除</button>
+            </header>
+            <div class="field-grid">
+              <label><span>按钮文字</span><input v-model="link.label" placeholder="如：访问官网" /></label>
+              <label><span>链接（http/https）</span><input v-model="link.url" placeholder="https://..." /></label>
+            </div>
+          </div>
+          <button type="button" class="add-btn" :disabled="busy" @click="addPclLink">+ 添加快捷按钮</button>
+          <button type="button" class="save-btn" :disabled="busy" @click="save('pcl.json')">保存「PCL 主页」</button>
+        </section>
+
         <section v-show="tab === 'stats'">
           <h2>首页数据亮点</h2>
           <div v-for="(s, i) in stats.stats" :key="'s' + i" class="row-3">
@@ -221,6 +310,65 @@
           </div>
           <button type="button" class="add-btn" :disabled="busy" @click="stats.stats.push({ value: 1, suffix: '+', label: '新数据' })">+ 添加一条</button>
           <button type="button" class="save-btn" :disabled="busy" @click="save('stats.json')">保存「首页数据」</button>
+        </section>
+
+        <section v-show="tab === 'wall'">
+          <h2>留言墙</h2>
+          <p class="hint">先审后发：新留言默认待审核，通过后才会出现在前台。删除不可恢复。</p>
+          <div class="wall-tabs">
+            <button v-for="opt in [
+              { key: 'pending', label: '待审核' },
+              { key: 'approved', label: '已通过' },
+              { key: 'hidden', label: '已屏蔽' },
+              { key: 'all', label: '全部' },
+            ]" :key="opt.key" type="button" :class="{ 'is-active': wall.status === opt.key }" @click="setWallStatus(opt.key)">
+              {{ opt.label }}
+            </button>
+          </div>
+
+          <p v-if="wall.loading" class="hint">正在加载留言…</p>
+          <p v-else-if="!wall.messages.length" class="hint">当前分类下暂无留言。</p>
+          <div v-for="message in wall.messages" :key="message.id" class="item-card">
+            <header>
+              <b>{{ message.name }}</b>
+              <span class="wall-status" :class="`wall-status--${message.status}`">{{ wallStatusLabel(message.status) }}</span>
+            </header>
+            <p class="wall-content">{{ message.content }}</p>
+            <p class="wall-meta">{{ formatDate(message.createdAt) }}</p>
+            <div class="wall-actions">
+              <button v-if="message.status !== 'approved'" type="button" @click="moderateWall(message.id, 'approved')">通过</button>
+              <button v-if="message.status !== 'hidden'" type="button" @click="moderateWall(message.id, 'hidden')">隐藏</button>
+              <button type="button" class="danger" @click="moderateWall(message.id, 'delete')">删除</button>
+            </div>
+          </div>
+
+          <div v-if="wall.pages > 1" class="wall-pager">
+            <button type="button" :disabled="wall.page <= 1 || wall.loading" @click="loadWall(wall.page - 1)">上一页</button>
+            <span>{{ wall.page }} / {{ wall.pages }}（共 {{ wall.total }} 条）</span>
+            <button type="button" :disabled="wall.page >= wall.pages || wall.loading" @click="loadWall(wall.page + 1)">下一页</button>
+          </div>
+        </section>
+
+        <section v-show="tab === 'images'">
+          <h2>图片库</h2>
+          <p class="hint">上传后的图片会保存到服务器 /uploads/，可在作品、动态、成员等处复用。仍被内容引用的图片不能删除。</p>
+          <button type="button" class="save-btn" :disabled="busy" @click="uploadToLibrary">上传图片</button>
+          <button type="button" class="add-btn" @click="loadImages">刷新列表</button>
+
+          <p v-if="!images.length" class="hint">还没有上传过图片。</p>
+          <div class="image-library">
+            <div v-for="image in images" :key="image.name" class="image-card">
+              <img :src="image.url" :alt="image.name" loading="lazy" />
+              <div class="image-card__info">
+                <b>{{ image.name }}</b>
+                <span>{{ formatSize(image.size) }} · {{ formatDate(image.mtime) }}</span>
+              </div>
+              <div class="image-card__actions">
+                <button type="button" @click="copyImage(image.url)">复制链接</button>
+                <button type="button" class="danger" @click="deleteImage(image.name)">删除</button>
+              </div>
+            </div>
+          </div>
         </section>
 
         <section v-show="tab === 'settings'">
@@ -243,22 +391,28 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
   siteConfig, worksData, newsData, membersData, statsData, eventsData, docsData,
+  serversData, pclData, type PclConfig,
 } from '@/data'
 import { renderMarkdown } from '@/lib/markdown'
 
 const API = '/admin-api.php'
 
 const tabs = [
+  { key: 'overview', label: '概览' },
   { key: 'site', label: '联系方式' },
   { key: 'works', label: '作品展示' },
   { key: 'news', label: '社团动态' },
   { key: 'events', label: '活动中心' },
   { key: 'docs', label: '指南文档' },
   { key: 'members', label: '成员风采' },
+  { key: 'servers', label: '服务器' },
+  { key: 'pcl', label: 'PCL 主页' },
   { key: 'stats', label: '首页数据' },
+  { key: 'wall', label: '留言墙' },
+  { key: 'images', label: '图片库' },
   { key: 'settings', label: '设置' },
 ]
 
@@ -290,7 +444,7 @@ const busy = ref(false)
 const password = ref('')
 const msg = ref('')
 const isError = ref(false)
-const tab = ref('site')
+const tab = ref('overview')
 const pw = reactive({ oldPw: '', newPw: '', newPw2: '' })
 // eslint-disable-next-line
 const dataFiles = ref<Record<string, any>>({})
@@ -302,6 +456,18 @@ const members = computed(() => dataFiles.value['members.json'] ?? { leadership: 
 const stats = computed(() => dataFiles.value['stats.json'] ?? { stats: [] })
 const events = computed(() => dataFiles.value['events.json'] ?? { events: [] })
 const docs = computed(() => dataFiles.value['docs.json'] ?? { docs: [] })
+const servers = computed(() => dataFiles.value['servers.json'] ?? { servers: [] })
+const pcl = computed<PclConfig>(() => dataFiles.value['pcl.json'] ?? pclData)
+const wall = reactive({
+  messages: [] as any[],
+  total: 0,
+  page: 1,
+  pages: 1,
+  status: 'pending',
+  loading: false,
+})
+const images = ref<{ name: string; url: string; size: number; mtime: number }[]>([])
+const overview = reactive({ pending: 0, images: 0, loading: false })
 const docCategories = computed<string[]>(() =>
   [...new Set<string>(docs.value.docs.map((d: any) => String(d.category || '')).filter(Boolean))],
 )
@@ -356,9 +522,14 @@ function enterEditor(st: any) {
   ensure('events.json', !!eventsFile && Array.isArray(eventsFile.events), eventsData)
   const docsFile = files['docs.json']
   ensure('docs.json', !!docsFile && Array.isArray(docsFile.docs), docsData)
+  const serversFile = files['servers.json']
+  ensure('servers.json', !!serversFile && Array.isArray(serversFile.servers), serversData)
+  const pclFile = files['pcl.json']
+  ensure('pcl.json', !!pclFile && typeof pclFile === 'object' && Array.isArray(pclFile.links), pclData)
 
   dataFiles.value = files
   phase.value = 'ready'
+  loadOverview()
 }
 
 async function bootstrap() {
@@ -389,6 +560,20 @@ async function logout() {
 }
 
 async function save(file: string) {
+  if (file === 'servers.json') {
+    const invalid = servers.value.servers.some(
+      (server: any) => !String(server.name || '').trim() || !String(server.address || '').trim(),
+    )
+    if (invalid) {
+      flash('服务器名称和真实地址不能为空', true)
+      return
+    }
+    servers.value.servers.forEach((server: any) => {
+      server.port = Number(server.port) || 0
+      server.fallbackPort = Number(server.fallbackPort) || 0
+      if (!String(server.displayAddress || '').trim()) delete server.displayAddress
+    })
+  }
   busy.value = true
   try {
     const res = await api({ action: 'save', file, content: dataFiles.value[file] })
@@ -462,6 +647,173 @@ function addNews() {
   })
 }
 
+async function loadOverview() {
+  overview.loading = true
+  try {
+    const [countsRes, imagesRes] = await Promise.all([
+      api({ action: 'wall_counts' }),
+      api({ action: 'images_list' }),
+    ])
+    if (countsRes.ok && countsRes.counts) {
+      overview.pending = Number(countsRes.counts.pending) || 0
+    }
+    if (imagesRes.ok && Array.isArray(imagesRes.images)) {
+      overview.images = imagesRes.images.length
+    }
+  } catch {
+    // 概览加载失败不影响内容编辑
+  } finally {
+    overview.loading = false
+  }
+}
+
+async function loadWall(page = wall.page) {
+  wall.loading = true
+  try {
+    const res = await api({ action: 'wall_admin_list', status: wall.status, page, limit: 20 })
+    if (res.ok) {
+      wall.messages = res.messages || []
+      wall.total = Number(res.total) || 0
+      wall.page = Number(res.page) || 1
+      wall.pages = Number(res.pages) || 1
+    } else {
+      flash(res.error || '加载留言失败', true)
+    }
+  } catch {
+    flash('加载留言失败，请稍后重试', true)
+  } finally {
+    wall.loading = false
+  }
+}
+
+async function setWallStatus(status: string) {
+  wall.status = status
+  await loadWall(1)
+}
+
+async function moderateWall(id: number, status: 'approved' | 'hidden' | 'delete') {
+  if (status === 'delete' && !confirm('确定删除这条留言吗？删除后不可恢复。')) return
+  busy.value = true
+  try {
+    const res = await api({ action: 'wall_moderate', id, status })
+    if (res.ok) {
+      flash(status === 'delete' ? '留言已删除' : '留言状态已更新')
+      await loadWall(wall.page)
+      loadOverview()
+    } else {
+      flash(res.error || '操作失败', true)
+    }
+  } catch {
+    flash('操作失败，请稍后重试', true)
+  } finally {
+    busy.value = false
+  }
+}
+
+async function loadImages() {
+  try {
+    const res = await api({ action: 'images_list' })
+    if (res.ok) images.value = res.images || []
+    else flash(res.error || '加载图片失败', true)
+  } catch {
+    flash('加载图片失败，请稍后重试', true)
+  }
+}
+
+async function deleteImage(name: string) {
+  if (!confirm('确定删除这张图片吗？仍被内容引用的图片会被拒绝删除。')) return
+  busy.value = true
+  try {
+    const res = await api({ action: 'images_delete', name })
+    if (res.ok) {
+      flash('图片已删除')
+      await loadImages()
+      loadOverview()
+    } else {
+      flash(res.error || '删除失败', true)
+    }
+  } catch {
+    flash('删除失败，请稍后重试', true)
+  } finally {
+    busy.value = false
+  }
+}
+
+async function copyImage(url: string) {
+  const full = location.origin + url
+  try {
+    await navigator.clipboard.writeText(full)
+    flash('图片链接已复制：' + full)
+  } catch {
+    flash('复制失败，请手动复制：' + full, true)
+  }
+}
+
+function uploadToLibrary() {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = 'image/jpeg,image/png,image/webp,image/gif'
+  input.onchange = async () => {
+    if (!input.files?.length) return
+    busy.value = true
+    try {
+      const fd = new FormData()
+      fd.append('action', 'upload')
+      fd.append('file', input.files[0])
+      const res = await api(fd)
+      if (res.ok) {
+        flash('图片已上传：' + res.url)
+        await loadImages()
+        loadOverview()
+      } else {
+        flash(res.error || '上传失败', true)
+      }
+    } catch {
+      flash('上传失败，请稍后重试', true)
+    } finally {
+      busy.value = false
+    }
+  }
+  input.click()
+}
+
+function addServer() {
+  servers.value.servers.push({
+    id: `server-${Date.now().toString(36)}`,
+    name: '',
+    note: '',
+    address: '',
+    displayAddress: '',
+    port: 0,
+    fallbackPort: 25565,
+    edition: 'java',
+  })
+}
+
+function addPclLink() {
+  pcl.value.links.push({ label: '', url: '' })
+}
+
+function wallStatusLabel(status: string): string {
+  if (status === 'approved') return '已通过'
+  if (status === 'hidden') return '已屏蔽'
+  return '待审核'
+}
+
+function formatDate(timestamp: number): string {
+  const date = new Date(timestamp * 1000)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+  })
+}
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+  return (bytes / 1024 / 1024).toFixed(1) + ' MB'
+}
+
 function addEvent() {
   const now = new Date()
   events.value.events.unshift({
@@ -512,6 +864,13 @@ function today(): string {
   return p(d.getFullYear()) + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate())
 }
 
+watch(tab, (value) => {
+  if (phase.value !== 'ready') return
+  if (value === 'wall') loadWall(1)
+  if (value === 'images') loadImages()
+  if (value === 'overview') loadOverview()
+})
+
 onMounted(bootstrap)
 </script>
 
@@ -546,6 +905,35 @@ input, textarea, select { width: 100%; box-sizing: border-box; padding: 9px 10px
 .doc-preview :deep(pre) { background: #191c22; border: 1px solid #2a2d34; padding: 10px; overflow: auto; }
 .doc-preview :deep(table) { width: 100%; border-collapse: collapse; }
 .doc-preview :deep(th), .doc-preview :deep(td) { border: 1px solid #2a2d34; padding: 4px 8px; }
+.overview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.overview-card { display: flex; flex-direction: column; gap: 4px; padding: 16px; text-align: left; background: #14161b; border: 1px solid #2a2d34; border-radius: 10px; color: inherit; cursor: pointer; }
+.overview-card b { font-size: 28px; color: #42b883; }
+.overview-card span { font-size: 13px; color: #9a9788; }
+.overview-card.is-alert { border-color: #a34848; }
+.overview-card.is-alert b { color: #e08585; }
+.overview-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.wall-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.wall-tabs button { padding: 6px 14px; border: 1px solid #3a3d45; border-radius: 999px; background: #171a20; color: #b9b6a7; cursor: pointer; }
+.wall-tabs button.is-active { background: #42b883; border-color: #42b883; color: #06281a; font-weight: 700; }
+.wall-status { padding: 2px 8px; border: 1px solid #3a3d45; border-radius: 999px; font-size: 12px; color: #b9b6a7; }
+.wall-status--approved { color: #7fd8ab; border-color: #2d6b4a; }
+.wall-status--pending { color: #e7c47f; border-color: #7a5f2a; }
+.wall-status--hidden { color: #e08585; border-color: #7a3a3a; }
+.wall-content { margin: 6px 0; white-space: pre-line; line-height: 1.7; color: #d8d5c7; overflow-wrap: anywhere; }
+.wall-meta { font-size: 12px; color: #8a887b; }
+.wall-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.wall-actions button { padding: 5px 12px; border: 1px solid #4a4d55; border-radius: 6px; background: transparent; color: #b9b6a7; cursor: pointer; }
+.wall-actions button.danger { border-color: #a34848; color: #e08585; }
+.wall-pager { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 10px 0 30px; font-size: 13px; color: #9a9788; }
+.wall-pager button { padding: 5px 12px; border: 1px solid #4a4d55; border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }
+.image-library { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; margin-top: 14px; }
+.image-card { display: flex; flex-direction: column; overflow: hidden; background: #14161b; border: 1px solid #2a2d34; border-radius: 10px; }
+.image-card img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: #000; }
+.image-card__info { display: flex; flex-direction: column; gap: 3px; padding: 10px; font-size: 12px; color: #9a9788; }
+.image-card__info b { overflow: hidden; color: #d8d5c7; text-overflow: ellipsis; white-space: nowrap; }
+.image-card__actions { display: flex; gap: 6px; padding: 0 10px 10px; }
+.image-card__actions button { flex: 1; padding: 5px; border: 1px solid #4a4d55; border-radius: 6px; background: transparent; color: #b9b6a7; cursor: pointer; font-size: 12px; }
+.image-card__actions button.danger { border-color: #a34848; color: #e08585; }
 textarea { resize: vertical; }
 .row-3 { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end; margin-bottom: 8px; }
 .item-card { border: 1px solid #2a2d34; border-radius: 10px; padding: 14px; margin-bottom: 14px; background: #14161b; }

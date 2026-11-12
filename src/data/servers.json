@@ -6,6 +6,7 @@
       "note": "社团主服",
       "address": "srvl.yitmc.cn",
       "port": 0,
+      "fallbackPort": 20043,
       "edition": "java"
     },
     {
@@ -14,6 +15,7 @@
       "note": "校园复刻工程",
       "address": "building.yitmc.cn",
       "port": 0,
+      "fallbackPort": 19000,
       "edition": "java"
     },
     {
@@ -22,6 +24,7 @@
       "note": "跑酷",
       "address": "parkour.uemcraft.cn",
       "port": 0,
+      "fallbackPort": 25565,
       "edition": "java"
     },
     {
@@ -31,6 +34,7 @@
       "address": "unioncompute.top",
       "displayAddress": "unioncompute.***",
       "port": 26149,
+      "fallbackPort": 26149,
       "edition": "java"
     },
     {
@@ -39,6 +43,7 @@
       "note": "MUA 高校联盟大厅",
       "address": "lobby.mualliance.cn",
       "port": 0,
+      "fallbackPort": 25565,
       "edition": "java"
     }
   ]

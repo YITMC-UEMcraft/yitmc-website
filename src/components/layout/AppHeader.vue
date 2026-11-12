@@ -34,6 +34,7 @@ const navLinks = [
   { to: '/news', label: '动态' },
   { to: '/events', label: '活动' },
   { to: '/docs', label: '指南' },
+  { to: '/wall', label: '留言墙' },
   { to: '/members', label: '成员' },
   { to: '/about', label: '关于' },
   { to: '/join', label: '加入' },
@@ -135,6 +136,13 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll))
   width: 24px;
   height: 3px;
   background: var(--color-text);
+}
+
+@media (max-width: 1000px) {
+  .app-header__link {
+    padding-left: var(--space-sm);
+    padding-right: var(--space-sm);
+  }
 }
 
 @media (max-width: 768px) {

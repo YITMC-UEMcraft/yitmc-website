@@ -6,6 +6,7 @@ import statsJson from './stats.json'
 import eventsJson from './events.json'
 import docsJson from './docs.json'
 import serversJson from './servers.json'
+import pclJson from './pcl.json'
 
 /** 社团活动 */
 export interface ClubEvent {
@@ -52,7 +53,22 @@ export interface McServerConfig {
   /** 对外展示地址（不传则同 address），用于隐藏真实地址 */
   displayAddress?: string
   port: number
+  /** SRV 解析失败时的兜底端口（PCL 主页使用） */
+  fallbackPort?: number
   edition: 'java' | 'bedrock'
+}
+
+/** PCL2 自定义主页配置 */
+export interface PclLink {
+  label: string
+  url: string
+}
+
+export interface PclConfig {
+  title: string
+  intro: string
+  newsCount: number
+  links: PclLink[]
 }
 
 /**
@@ -68,7 +84,8 @@ export const membersData: typeof membersJson = membersJson
 export const statsData: typeof statsJson = statsJson
 export const eventsData: { events: ClubEvent[] } = eventsJson as { events: ClubEvent[] }
 export const docsData: { docs: ClubDoc[] } = docsJson as { docs: ClubDoc[] }
-export const servers: McServerConfig[] = (serversJson as { servers: McServerConfig[] }).servers
+export const serversData: { servers: McServerConfig[] } = serversJson as { servers: McServerConfig[] }
+export const pclData: PclConfig = pclJson as PclConfig
 
 const FILES = [
   { name: 'site-config.json', data: siteConfig },
@@ -78,6 +95,8 @@ const FILES = [
   { name: 'stats.json', data: statsData },
   { name: 'events.json', data: eventsData },
   { name: 'docs.json', data: docsData },
+  { name: 'servers.json', data: serversData },
+  { name: 'pcl.json', data: pclData as unknown as Record<string, unknown> },
 ] as const
 
 function replaceInPlace(target: Record<string, unknown>, source: Record<string, unknown>) {

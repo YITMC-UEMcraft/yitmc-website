@@ -21,7 +21,7 @@ header('Cache-Control: no-store');
 /* ---------------- 配置 ---------------- */
 // 仅允许查询这些域名（后缀匹配 / 精确匹配），防止被当作任意主机探测代理
 $ALLOW_SUFFIX = ['.yitmc.cn'];
-$ALLOW_EXACT = ['unioncompute.top', 'lobby.mualliance.cn'];
+$ALLOW_EXACT = ['unioncompute.top', 'lobby.mualliance.cn', 'parkour.uemcraft.cn'];
 $CACHE_TTL = 60;        // 成功结果缓存秒数
 $STALE_TTL = 900;       // 探测失败时，可用旧结果的最长期限（秒）
 $CONNECT_TIMEOUT = 4.0; // MC 连接超时
@@ -41,6 +41,24 @@ function emit(array $data, int $code = 200): void {
 function fail(string $reason, int $code = 400): void {
     emit(['online' => false, 'error' => $reason], $code);
 }
+
+/** 后台维护的服务器列表里的主机也允许查询 */
+function configuredHosts(): array {
+    $file = __DIR__ . '/data/servers.json';
+    if (!is_file($file)) return [];
+    $json = json_decode((string) @file_get_contents($file), true);
+    $items = is_array($json) ? ($json['servers'] ?? $json) : [];
+    if (!is_array($items)) return [];
+    $hosts = [];
+    foreach ($items as $item) {
+        if (is_array($item) && !empty($item['address'])) {
+            $hosts[] = strtolower((string) $item['address']);
+        }
+    }
+    return array_values(array_unique($hosts));
+}
+
+$CONFIGURED_HOSTS = configuredHosts();
 
 /* ---------------- 输入校验 ---------------- */
 /** 仅接受公网 IPv4 解析结果（本服白名单域均为 v4；拒绝 v6 与私有/保留段，防 SSRF） */
@@ -68,7 +86,7 @@ if ($host === '' || strlen($host) > 253 || !preg_match('/^[a-z0-9.-]+$/i', $host
     fail('invalid host');
 }
 $host = strtolower($host);
-$allowed = in_array($host, $ALLOW_EXACT, true);
+$allowed = in_array($host, $ALLOW_EXACT, true) || in_array($host, $CONFIGURED_HOSTS, true);
 if (!$allowed) {
     foreach ($ALLOW_SUFFIX as $suffix) {
         if (substr($host, -strlen($suffix)) === $suffix) { $allowed = true; break; }

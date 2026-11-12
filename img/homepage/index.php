@@ -30,13 +30,116 @@ const MCSTATUS = 'https://api.mcstatus.io/v2/status/java/';
 const CACHE_FILE = 'yitmc-pcl-status.json';
 
 // port=0 表示自动 SRV 解析，failPort 为 SRV 查询失败时的兜底端口；id 用于端口缓存
-$SERVERS = [
+// 实际列表优先读取后台维护的 /data/servers.json，缺失时回落到这里的默认值
+$DEFAULT_SERVERS = [
     ['id' => 'srvl',     'name' => '燕通联合服务器',   'note' => '社团主服',        'host' => 'srvl.yitmc.cn',     'display' => 'srvl.yitmc.cn',     'port' => 0,     'failPort' => 20043],
     ['id' => 'building', 'name' => '复原工程建筑服',   'note' => '校园复刻工程',    'host' => 'building.yitmc.cn', 'display' => 'building.yitmc.cn', 'port' => 0,     'failPort' => 19000],
     ['id' => 'parkour',  'name' => '跑酷服务器',       'note' => '跑酷',            'host' => 'parkour.uemcraft.cn','display' => 'parkour.uemcraft.cn','port' => 0,   'failPort' => 25565],
     ['id' => 'jjgl',     'name' => '津高联联合服务器', 'note' => '原版生存',        'host' => 'unioncompute.top',  'display' => 'unioncompute.***',  'port' => 26149, 'failPort' => 26149],
     ['id' => 'mua',      'name' => 'MUA Lobby',        'note' => 'MUA 高校联盟大厅', 'host' => 'lobby.mualliance.cn','display' => 'lobby.mualliance.cn','port' => 0,    'failPort' => 25565],
 ];
+
+/** 后台维护的数据文件路径（homepage/ 的上一级是网站根目录） */
+function pclDataFile(string $name): string
+{
+    return dirname(__DIR__) . '/data/' . $name;
+}
+
+function loadServers(): array
+{
+    global $DEFAULT_SERVERS;
+    $file = pclDataFile('servers.json');
+    if (!is_file($file)) {
+        return $DEFAULT_SERVERS;
+    }
+    $json = json_decode((string) @file_get_contents($file), true);
+    $items = is_array($json) ? ($json['servers'] ?? $json) : [];
+    if (!is_array($items)) {
+        return $DEFAULT_SERVERS;
+    }
+    $out = [];
+    foreach ($items as $item) {
+        if (!is_array($item) || empty($item['address'])) {
+            continue;
+        }
+        $address = (string) $item['address'];
+        $display = trim((string) ($item['displayAddress'] ?? ''));
+        if ($display === '') {
+            $display = $address;
+        }
+        $fallbackPort = (int) ($item['fallbackPort'] ?? 0);
+        if ($fallbackPort <= 0) {
+            $fallbackPort = (int) ($item['port'] ?? 0);
+        }
+        if ($fallbackPort <= 0) {
+            $fallbackPort = 25565;
+        }
+        $out[] = [
+            'id' => (string) ($item['id'] ?? ('srv' . count($out))),
+            'name' => (string) ($item['name'] ?? $address),
+            'note' => (string) ($item['note'] ?? ''),
+            'host' => $address,
+            'display' => $display,
+            'port' => (int) ($item['port'] ?? 0),
+            'failPort' => $fallbackPort,
+        ];
+    }
+    return $out ?: $DEFAULT_SERVERS;
+}
+
+function loadPclConfig(): array
+{
+    $defaults = [
+        'title' => '燕京理工学院 MC 玩家创作协会',
+        'intro' => '欢迎加入 YITMC！点击下方服务器卡片中的地址即可复制，状态数据每次启动自动更新。',
+        'newsCount' => 2,
+        'links' => [
+            ['label' => '访问官网', 'url' => 'https://www.yitmc.cn/'],
+            ['label' => '加入QQ群', 'url' => 'https://qm.qq.com/q/942717135'],
+            ['label' => '社团皮肤站', 'url' => 'https://skin.yitmc.cn/'],
+        ],
+    ];
+    $file = pclDataFile('pcl.json');
+    if (!is_file($file)) {
+        return $defaults;
+    }
+    $json = json_decode((string) @file_get_contents($file), true);
+    if (!is_array($json)) {
+        return $defaults;
+    }
+    $out = $defaults;
+    if (isset($json['title']) && is_string($json['title']) && trim($json['title']) !== '') {
+        $out['title'] = trunc($json['title'], 80);
+    }
+    if (isset($json['intro']) && is_string($json['intro']) && trim($json['intro']) !== '') {
+        $out['intro'] = trunc($json['intro'], 200);
+    }
+    if (isset($json['newsCount'])) {
+        $out['newsCount'] = max(0, min(5, (int) $json['newsCount']));
+    }
+    if (isset($json['links']) && is_array($json['links'])) {
+        $links = [];
+        foreach ($json['links'] as $link) {
+            if (!is_array($link)) {
+                continue;
+            }
+            $label = trim((string) ($link['label'] ?? ''));
+            $url = trim((string) ($link['url'] ?? ''));
+            if ($label === '' || !preg_match('#^https?://#i', $url)) {
+                continue;
+            }
+            $links[] = ['label' => trunc($label, 20), 'url' => trunc($url, 500)];
+            if (count($links) >= 4) {
+                break;
+            }
+        }
+        $out['links'] = $links;
+    }
+    return $out;
+}
+
+$SERVERS = loadServers();
+$PCL = loadPclConfig();
 
 /* ================================================ */
 
@@ -447,23 +550,25 @@ if (is_file($newsFile)) {
     $items = is_array($news) ? ($news['news'] ?? $news) : [];
     if (is_array($items)) {
         usort($items, fn($a, $b) => strcmp((string) ($b['date'] ?? ''), (string) ($a['date'] ?? '')));
-        $latestNews = array_slice($items, 0, 2);
+        $latestNews = array_slice($items, 0, (int) $PCL['newsCount']);
     }
 }
 
-$xaml .= '    <local:MyCard Title="燕京理工学院 MC 玩家创作协会" Margin="0,0,0,15" CanSwap="True">' . "\n";
+$xaml .= '    <local:MyCard Title="' . xesc($PCL['title']) . '" Margin="0,0,0,15" CanSwap="True">' . "\n";
 $xaml .= '        <StackPanel Margin="25,40,23,15">' . "\n";
-$xaml .= '            <TextBlock TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource ColorBrush4}" Text="欢迎加入 YITMC！点击下方服务器卡片中的地址即可复制，状态数据每次启动自动更新。" />' . "\n";
+$xaml .= '            <TextBlock TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource ColorBrush4}" Text="' . xesc($PCL['intro']) . '" />' . "\n";
 foreach ($latestNews as $item) {
     $title = trunc((string) ($item['title'] ?? ''), 40);
     $date = (string) ($item['date'] ?? '');
     $xaml .= '            <local:MyListItem Margin="-5,2,-5,2" Logo="pack://application:,,,/images/Blocks/GoldBlock.png" Title="' . xesc($title) . '" Info="' . xesc($date) . '" />' . "\n";
 }
-$xaml .= '            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">' . "\n";
-$xaml .= '                <local:MyButton Text="访问官网" Padding="13,7,13,8" Margin="0,0,10,0" EventType="打开网页" EventData="https://www.yitmc.cn/" />' . "\n";
-$xaml .= '                <local:MyButton Text="加入QQ群" Padding="13,7,13,8" Margin="0,0,10,0" EventType="打开网页" EventData="https://qm.qq.com/q/942717135" />' . "\n";
-$xaml .= '                <local:MyButton Text="社团皮肤站" Padding="13,7,13,8" EventType="打开网页" EventData="https://skin.yitmc.cn/" />' . "\n";
-$xaml .= '            </StackPanel>' . "\n";
+if (!empty($PCL['links'])) {
+    $xaml .= '            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">' . "\n";
+    foreach ($PCL['links'] as $link) {
+        $xaml .= '                <local:MyButton Text="' . xesc($link['label']) . '" Padding="13,7,13,8" Margin="0,0,10,0" EventType="打开网页" EventData="' . xesc($link['url']) . '" />' . "\n";
+    }
+    $xaml .= '            </StackPanel>' . "\n";
+}
 $xaml .= '            <TextBlock Margin="0,8,0,0" FontSize="11" Foreground="{DynamicResource ColorBrush4}" Text="状态更新于 ' . xesc(date('Y-m-d H:i:s')) . '" />' . "\n";
 $xaml .= '        </StackPanel>' . "\n";
 $xaml .= '    </local:MyCard>' . "\n";
