@@ -120,7 +120,11 @@ function setPasswordHash(string $plain): bool
         'hash' => password_hash($plain, PASSWORD_DEFAULT),
         'updated' => time(),
     ], JSON_UNESCAPED_UNICODE);
-    return $json !== false && file_put_contents($file, $json, LOCK_EX) !== false;
+    $ok = $json !== false && file_put_contents($file, $json, LOCK_EX) !== false;
+    if ($ok) {
+        @chmod($file, 0640);
+    }
+    return $ok;
 }
 
 function storedPasswordHash(): ?string
@@ -251,6 +255,7 @@ function withWall(callable $callback)
     }
     flock($fh, LOCK_UN);
     fclose($fh);
+    @chmod(wallPath(), 0640);
     return $result;
 }
 
@@ -364,6 +369,7 @@ function withNewsViews(callable $callback)
     }
     flock($fh, LOCK_UN);
     fclose($fh);
+    @chmod($path, 0640);
     return $result;
 }
 
@@ -651,6 +657,7 @@ function withUsers(callable $callback)
     }
     flock($fh, LOCK_UN);
     fclose($fh);
+    @chmod($path, 0640);
     return $result;
 }
 
