@@ -5,6 +5,9 @@ export interface WallMessage {
   name: string
   content: string
   createdAt: number
+  userId?: number
+  accountAvatar?: string
+  accountPublic?: boolean
 }
 
 export interface WallPage {

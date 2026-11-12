@@ -420,7 +420,10 @@
               <span class="wall-status" :class="`wall-status--${message.status}`">{{ wallStatusLabel(message.status) }}</span>
             </header>
             <p class="wall-content">{{ message.content }}</p>
-            <p class="wall-meta">{{ formatDate(message.createdAt) }}</p>
+            <p class="wall-meta">
+              <span v-if="message.userId" class="wall-account">账号绑定 #{{ message.userId }} · </span>
+              {{ formatDate(message.createdAt) }}
+            </p>
             <div class="wall-actions">
               <button v-if="message.status !== 'approved'" type="button" @click="moderateWall(message.id, 'approved')">通过</button>
               <button v-if="message.status !== 'hidden'" type="button" @click="moderateWall(message.id, 'hidden')">隐藏</button>
@@ -1060,6 +1063,7 @@ input, textarea, select { width: 100%; box-sizing: border-box; padding: 9px 10px
 .wall-status--hidden { color: #e08585; border-color: #7a3a3a; }
 .wall-content { margin: 6px 0; white-space: pre-line; line-height: 1.7; color: #d8d5c7; overflow-wrap: anywhere; }
 .wall-meta { font-size: 12px; color: #8a887b; }
+.wall-account { color: #7fd8ab; }
 .wall-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .wall-actions button { padding: 5px 12px; border: 1px solid #4a4d55; border-radius: 6px; background: transparent; color: #b9b6a7; cursor: pointer; }
 .wall-actions button.danger { border-color: #a34848; color: #e08585; }

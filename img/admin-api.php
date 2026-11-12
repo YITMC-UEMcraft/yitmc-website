@@ -1054,13 +1054,21 @@ switch ($action) {
             $page = $pages;
         }
         $slice = array_slice($approved, ($page - 1) * $limit, $limit);
+        $users = readUsers();
         $messages = [];
         foreach ($slice as $message) {
+            $userId = (int) ($message['userId'] ?? 0);
+            $account = $userId > 0 ? findUserById($users, $userId) : null;
             $messages[] = [
                 'id' => (int) ($message['id'] ?? 0),
-                'name' => (string) ($message['name'] ?? ''),
+                'name' => $account
+                    ? (string) ($account['nickname'] ?? $message['name'] ?? '')
+                    : (string) ($message['name'] ?? ''),
                 'content' => (string) ($message['content'] ?? ''),
                 'createdAt' => (int) ($message['createdAt'] ?? 0),
+                'userId' => $account ? $userId : 0,
+                'accountAvatar' => $account ? userAvatar($account) : '',
+                'accountPublic' => $account ? !empty($account['isPublic']) : false,
             ];
         }
         respond(['ok' => true, 'messages' => $messages, 'total' => $total, 'page' => $page, 'pages' => $pages]);
@@ -1068,31 +1076,45 @@ switch ($action) {
     case 'wall_post':
         requireSameOrigin();
         $input = !empty($GLOBALS['jsonBody']) ? $GLOBALS['jsonBody'] : $_POST;
+        $currentUser = currentOidcUser();
+        $isAccount = $currentUser !== null;
+        $status = $isAccount ? 'approved' : 'pending';
+        $accountUserId = $isAccount ? (int) ($currentUser['id'] ?? 0) : 0;
+
         // 蜜罐字段：正常用户不会填写
         if (trim((string) ($input['website'] ?? '')) !== '') {
-            respond(['ok' => true, 'status' => 'pending']);
+            respond(['ok' => true, 'status' => $status]);
         }
-        $name = cleanUserText((string) ($input['name'] ?? ''));
-        $name = preg_replace('/\s+/u', ' ', str_replace("\n", ' ', $name));
-        $name = trim($name === null ? '' : $name);
+
+        if ($isAccount) {
+            $name = trim((string) ($currentUser['nickname'] ?? ''));
+            $name = $name !== '' ? limitText($name, WALL_MAX_NAME) : 'YITMC 成员';
+        } else {
+            $name = cleanUserText((string) ($input['name'] ?? ''));
+            $name = preg_replace('/\s+/u', ' ', str_replace("\n", ' ', $name));
+            $name = trim($name === null ? '' : $name);
+            $nameLength = charCount($name);
+            if ($nameLength < 2 || $nameLength > WALL_MAX_NAME) {
+                fail('昵称长度需在 2–20 个字符之间', 400);
+            }
+        }
+
         $content = cleanUserText((string) ($input['content'] ?? ''));
-        $nameLength = charCount($name);
         $contentLength = charCount($content);
-        if ($nameLength < 2 || $nameLength > WALL_MAX_NAME) {
-            fail('昵称长度需在 2–20 个字符之间', 400);
-        }
         if ($contentLength < 1 || $contentLength > WALL_MAX_CONTENT) {
             fail('留言内容需在 1–500 个字符之间', 400);
         }
+
         $ipHash = clientIpHash();
+        $rateKey = $isAccount ? 'u' . $accountUserId : $ipHash;
         $now = time();
-        $result = withWall(function (array &$data) use ($name, $content, $ipHash, $now) {
+        $result = withWall(function (array &$data) use ($name, $content, $rateKey, $now, $status, $accountUserId, $isAccount) {
             foreach ($data['rate'] as $key => $timestamp) {
                 if ($now - (int) $timestamp > 86400) {
                     unset($data['rate'][$key]);
                 }
             }
-            $last = (int) ($data['rate'][$ipHash] ?? 0);
+            $last = (int) ($data['rate'][$rateKey] ?? 0);
             if ($last > 0 && $now - $last < WALL_RATE_SECONDS) {
                 return ['ok' => false, 'retry' => WALL_RATE_SECONDS - ($now - $last)];
             }
@@ -1107,17 +1129,18 @@ switch ($action) {
                 }
                 $maxId = max($maxId, (int) ($message['id'] ?? 0));
             }
-            if ($pending >= WALL_MAX_PENDING) {
+            if (!$isAccount && $pending >= WALL_MAX_PENDING) {
                 return ['ok' => false, 'busy' => true];
             }
             $data['messages'][] = [
                 'id' => $maxId + 1,
                 'name' => $name,
                 'content' => $content,
-                'status' => 'pending',
+                'status' => $status,
+                'userId' => $accountUserId,
                 'createdAt' => $now,
             ];
-            $data['rate'][$ipHash] = $now;
+            $data['rate'][$rateKey] = $now;
             return ['ok' => true];
         });
         if (empty($result['ok'])) {
@@ -1126,7 +1149,7 @@ switch ($action) {
             }
             fail('待审核留言较多，请稍后再试', 503);
         }
-        respond(['ok' => true, 'status' => 'pending']);
+        respond(['ok' => true, 'status' => $status]);
 
     /* ===== 皮肤站登录 / 用户档案 ===== */
     case 'oidc_me':
@@ -1313,6 +1336,7 @@ switch ($action) {
                 'name' => (string) ($message['name'] ?? ''),
                 'content' => (string) ($message['content'] ?? ''),
                 'status' => (string) ($message['status'] ?? 'pending'),
+                'userId' => (int) ($message['userId'] ?? 0),
                 'createdAt' => (int) ($message['createdAt'] ?? 0),
             ];
         }

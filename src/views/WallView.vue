@@ -12,7 +12,14 @@
         <section class="wall-form block-inset" data-reveal>
           <h2 class="wall-form__title">写留言</h2>
           <form @submit.prevent="submit">
-            <label class="wall-field">
+            <div v-if="loggedIn" class="wall-identity">
+              <img :src="user?.avatar" alt="" class="wall-identity__avatar" />
+              <div class="wall-identity__info">
+                <strong>{{ user?.nickname }}</strong>
+                <span>已登录 · 留言将直接展示</span>
+              </div>
+            </div>
+            <label v-else class="wall-field">
               <span>昵称 <em>2–20 个字符</em></span>
               <input v-model="name" type="text" maxlength="20" placeholder="怎么称呼你？" autocomplete="nickname" />
             </label>
@@ -35,7 +42,10 @@
             <button type="submit" class="wall-submit" :disabled="sending">
               {{ sending ? '提交中…' : '发表留言' }}
             </button>
-            <p class="wall-note">留言采用先审后发，审核通过后会展示出来。</p>
+            <p v-if="loggedIn" class="wall-note">已登录账号留言会直接展示，仍可在后台被隐藏或删除。</p>
+            <p v-else class="wall-note">
+              留言采用先审后发；<RouterLink to="/account">登录后留言可直接展示</RouterLink>。
+            </p>
           </form>
         </section>
 
@@ -50,7 +60,21 @@
           <ul v-else class="wall-list__items">
             <li v-for="message in messages" :key="message.id" class="wall-card block-inset">
               <div class="wall-card__head">
-                <span class="wall-card__name">{{ message.name }}</span>
+                <div class="wall-card__who">
+                  <img
+                    v-if="message.userId && message.accountAvatar"
+                    :src="message.accountAvatar"
+                    alt=""
+                    class="wall-card__avatar"
+                  />
+                  <RouterLink
+                    v-if="message.userId && message.accountPublic"
+                    :to="`/profile/${message.userId}`"
+                    class="wall-card__name"
+                  >{{ message.name }}</RouterLink>
+                  <span v-else class="wall-card__name">{{ message.name }}</span>
+                  <span v-if="message.userId" class="wall-card__account">登录用户</span>
+                </div>
                 <time class="wall-card__time" :datetime="new Date(message.createdAt * 1000).toISOString()">
                   {{ formatDate(message.createdAt) }}
                 </time>
@@ -78,6 +102,9 @@ import AppHeader from '@/components/layout/AppHeader.vue'
 import AppFooter from '@/components/layout/AppFooter.vue'
 import BlockDivider from '@/components/ui/BlockDivider.vue'
 import { fetchWall, postWall, type WallMessage } from '@/lib/wall'
+import { useAuth } from '@/composables/useAuth'
+
+const { user } = useAuth()
 
 const name = ref('')
 const content = ref('')
@@ -92,6 +119,7 @@ const page = ref(1)
 const pages = ref(1)
 
 const contentLength = computed(() => Array.from(content.value).length)
+const loggedIn = computed(() => Boolean(user.value))
 
 function formatDate(timestamp: number): string {
   const date = new Date(timestamp * 1000)
@@ -126,7 +154,7 @@ async function submit() {
   success.value = ''
   const nickname = name.value.trim()
   const text = content.value.trim()
-  if (Array.from(nickname).length < 2 || Array.from(nickname).length > 20) {
+  if (!loggedIn.value && (Array.from(nickname).length < 2 || Array.from(nickname).length > 20)) {
     error.value = '昵称长度需在 2–20 个字符之间'
     return
   }
@@ -136,10 +164,15 @@ async function submit() {
   }
   sending.value = true
   try {
-    await postWall(nickname, text, website.value)
-    success.value = '留言已提交，审核通过后将展示在这里。'
+    const result = await postWall(loggedIn.value ? (user.value?.nickname || 'YITMC 成员') : nickname, text, website.value)
     content.value = ''
     website.value = ''
+    if (result.status === 'approved') {
+      success.value = '留言已发布。'
+      await load(1)
+    } else {
+      success.value = '留言已提交，审核通过后将展示在这里。'
+    }
   } catch (err) {
     error.value = err instanceof Error ? err.message : '提交失败，请稍后再试'
   } finally {
@@ -194,6 +227,41 @@ onMounted(() => load(1))
   font-size: var(--text-xl);
   color: var(--color-text);
   margin-bottom: var(--space-lg);
+}
+
+.wall-identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-bg);
+  border: var(--border-width-sm) solid var(--color-surface-light);
+}
+
+.wall-identity__avatar {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border: var(--border-width-sm) solid var(--color-accent-dim);
+  image-rendering: pixelated;
+}
+
+.wall-identity__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wall-identity__info strong {
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  color: var(--color-accent-hover);
+}
+
+.wall-identity__info span {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
 }
 
 .wall-field {
@@ -284,6 +352,10 @@ onMounted(() => load(1))
   color: var(--color-text-muted);
 }
 
+.wall-note a {
+  color: var(--color-accent);
+}
+
 .wall-list__head {
   display: flex;
   align-items: baseline;
@@ -327,16 +399,43 @@ onMounted(() => load(1))
 
 .wall-card__head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-md);
   margin-bottom: var(--space-sm);
+}
+
+.wall-card__who {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.wall-card__avatar {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border: var(--border-width-sm) solid var(--color-accent-dim);
+  image-rendering: pixelated;
 }
 
 .wall-card__name {
   font-family: var(--font-display);
   font-size: var(--text-lg);
   color: var(--color-accent-hover);
+}
+
+.wall-card__name:hover {
+  color: var(--color-accent);
+}
+
+.wall-card__account {
+  flex: none;
+  padding: 1px var(--space-sm);
+  font-size: 10px;
+  color: var(--color-accent);
+  border: var(--border-width-sm) solid var(--color-accent-dim);
 }
 
 .wall-card__time {
