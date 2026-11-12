@@ -26,7 +26,9 @@ export function useScrollReveal() {
           }
         })
       },
-      { threshold: 0.15, rootMargin: '0px 0px -40px 0px' }
+      // threshold 用 0：15% 的比例阈值会让比视口高出数倍的容器
+      //（如移动端作品列表）永远达不到比例，导致整块内容不显示
+      { threshold: 0, rootMargin: '0px 0px -40px 0px' }
     )
 
     document.querySelectorAll(selector).forEach((el) => {
