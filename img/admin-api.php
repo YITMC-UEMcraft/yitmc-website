@@ -1254,6 +1254,31 @@ switch ($action) {
         }
         respond(['ok' => true, 'user' => publicUserView($user)]);
 
+    /* ===== 全体社员（登录过官网的皮肤站账号） ===== */
+    case 'site_members':
+        $data = readUsers();
+        $members = [];
+        foreach ($data['users'] as $user) {
+            if (!is_array($user) || (int) ($user['id'] ?? 0) <= 0) {
+                continue;
+            }
+            $isPublic = !empty($user['isPublic']);
+            $members[] = [
+                'id' => (int) ($user['id'] ?? 0),
+                'nickname' => (string) ($user['nickname'] ?? ''),
+                'avatar' => userAvatar($user),
+                'playerName' => (string) ($user['playerName'] ?? ''),
+                'bio' => $isPublic ? (string) ($user['bio'] ?? '') : '',
+                'isPublic' => $isPublic,
+                'siteRole' => (string) ($user['siteRole'] ?? 'user'),
+                'createdAt' => (int) ($user['createdAt'] ?? 0),
+            ];
+        }
+        usort($members, static function (array $a, array $b): int {
+            return [$a['createdAt'], $a['id']] <=> [$b['createdAt'], $b['id']];
+        });
+        respond(['ok' => true, 'members' => $members, 'total' => count($members)]);
+
     /* ===== 资讯浏览量 ===== */
     case 'news_views':
         respond(['ok' => true, 'counts' => (object) readNewsViews()]);
