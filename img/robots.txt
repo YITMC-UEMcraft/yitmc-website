@@ -1,6 +1,8 @@
 User-agent: *
 Allow: /
 Disallow: /admin
+Disallow: /account
+Disallow: /profile/
 Disallow: /admin-api.php
 Disallow: /status-api.php
 Disallow: /uploads/

@@ -14,10 +14,12 @@
 import { onBeforeUnmount, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useScrollReveal } from '@/composables/useScrollReveal'
+import { useAuth } from '@/composables/useAuth'
 import MascotDock from '@/components/layout/MascotDock.vue'
 
 const router = useRouter()
 const { init, destroy } = useScrollReveal()
+const { refreshAuth } = useAuth()
 
 // 页面切换时重新观察新页面里的 [data-reveal] 元素；
 // 延迟需覆盖 out-in 过渡的离场时长（150ms）
@@ -27,6 +29,7 @@ function observeReveals() {
 
 onMounted(() => {
   init()
+  refreshAuth()
   router.afterEach(observeReveals)
 })
 

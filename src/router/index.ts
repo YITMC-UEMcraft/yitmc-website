@@ -85,6 +85,18 @@ const router = createRouter({
       },
     },
     {
+      path: '/account',
+      name: 'account',
+      component: () => import('@/views/AccountView.vue'),
+      meta: { title: '我的档案 - YITMC', noindex: true },
+    },
+    {
+      path: '/profile/:id',
+      name: 'profile',
+      component: () => import('@/views/ProfileView.vue'),
+      meta: { title: '成员主页 - YITMC', noindex: true },
+    },
+    {
       path: '/members',
       name: 'members',
       component: () => import('@/views/MembersView.vue'),

@@ -420,6 +420,518 @@ function imageReferences(string $url): array
     return $refs;
 }
 
+/* ==================== OIDC 登录 ==================== */
+function oidcConfig(): array
+{
+    $defaults = [
+        'issuer' => 'https://skin.uemcraft.cn/oidc',
+        'authorization_endpoint' => 'https://skin.uemcraft.cn/oidc/auth',
+        'token_endpoint' => 'https://skin.uemcraft.cn/oidc/token',
+        'userinfo_endpoint' => 'https://skin.uemcraft.cn/oidc/userinfo',
+        'client_id' => '',
+        'client_secret' => '',
+        'redirect_uri' => 'https://www.yitmc.cn/admin-api.php?action=oidc_callback',
+        'scopes' => 'openid profile email Yggdrasil.PlayerProfiles.Read',
+        'public_client' => false,
+    ];
+    // 优先读取 webroot 外的 JSON 凭证（无需执行 PHP，便于安全写入）
+    $jsonFile = dirname(__DIR__) . '/yitmc-admin/oidc.json';
+    if (is_file($jsonFile)) {
+        $json = json_decode((string) @file_get_contents($jsonFile), true);
+        if (is_array($json)) {
+            $defaults = array_merge($defaults, $json);
+        }
+    }
+    // 兼容旧版 PHP 配置
+    $file = dirname(__DIR__) . '/yitmc-admin/oidc-config.php';
+    if (is_file($file)) {
+        $cfg = require $file;
+        if (is_array($cfg)) {
+            $defaults = array_merge($defaults, $cfg);
+        }
+    }
+    return $defaults;
+}
+
+function oidcConfigured(array $cfg): bool
+{
+    if (trim((string) $cfg['client_id']) === '') {
+        return false;
+    }
+    return !empty($cfg['public_client']) || trim((string) $cfg['client_secret']) !== '';
+}
+
+function redirectAccount(string $error = ''): void
+{
+    $targets = [
+        '' => '/account',
+        'not_configured' => '/account?login_error=not_configured',
+        'denied' => '/account?login_error=denied',
+        'state' => '/account?login_error=state',
+        'exchange' => '/account?login_error=exchange',
+        'userinfo' => '/account?login_error=userinfo',
+        'config' => '/account?login_error=config',
+    ];
+    $target = $targets[$error] ?? $targets['config'];
+    $safe = htmlspecialchars($target, ENT_QUOTES, 'UTF-8');
+    header('Content-Type: text/html; charset=utf-8');
+    echo '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">';
+    echo '<meta http-equiv="refresh" content="0;url=' . $safe . '"><title>返回档案</title></head><body>';
+    echo '<p>正在返回档案页…</p><p><a href="' . $safe . '">没有自动跳转？点这里</a></p>';
+    echo '</body></html>';
+    exit;
+}
+
+function base64url(string $value): string
+{
+    return rtrim(strtr(base64_encode($value), '+/', '-_'), '=');
+}
+
+function limitText(string $text, int $max): string
+{
+    $chars = preg_split('//u', $text, -1, PREG_SPLIT_NO_EMPTY);
+    if (!is_array($chars)) {
+        return substr($text, 0, $max);
+    }
+    return count($chars) > $max ? implode('', array_slice($chars, 0, $max)) : $text;
+}
+
+function oidcHttp(string $method, string $url, array $headers, string $body = ''): array
+{
+    $options = [
+        'http' => [
+            'method' => $method,
+            'header' => implode("\r\n", $headers),
+            'timeout' => 12,
+            'ignore_errors' => true,
+            'follow_location' => 0,
+        ],
+        'ssl' => [
+            'verify_peer' => true,
+            'verify_peer_name' => true,
+        ],
+    ];
+    if ($method === 'POST') {
+        $options['http']['content'] = $body;
+    }
+    $raw = @file_get_contents($url, false, stream_context_create($options));
+    $status = 0;
+    $location = '';
+    if (isset($http_response_header) && is_array($http_response_header)) {
+        foreach ($http_response_header as $line) {
+            if (preg_match('#^HTTP/\S+\s+(\d{3})#', $line, $m)) {
+                $status = (int) $m[1];
+            } elseif (stripos($line, 'Location:') === 0) {
+                $location = trim(substr($line, 9));
+            }
+        }
+    }
+    return [
+        'status' => $status,
+        'body' => $raw === false ? '' : $raw,
+        'json' => $raw !== false ? json_decode($raw, true) : null,
+        'location' => $location,
+    ];
+}
+
+function resolveUrl(string $base, string $location): string
+{
+    if (preg_match('#^https?://#i', $location)) {
+        return $location;
+    }
+    $parts = parse_url($base);
+    if (!is_array($parts) || empty($parts['host'])) {
+        return $location;
+    }
+    $root = ($parts['scheme'] ?? 'https') . '://' . $parts['host'] . (isset($parts['port']) ? ':' . $parts['port'] : '');
+    if ($location !== '' && $location[0] === '/') {
+        return $root . $location;
+    }
+    $dir = rtrim(dirname($parts['path'] ?? '/'), '/');
+    return $root . ($dir === '' ? '' : $dir) . '/' . $location;
+}
+
+function oidcUserinfo(string $url, string $token): ?array
+{
+    $current = $url;
+    for ($i = 0; $i < 3; $i++) {
+        $res = oidcHttp('GET', $current, [
+            'Authorization: Bearer ' . $token,
+            'Accept: application/json',
+        ]);
+        if ($res['status'] >= 300 && $res['status'] < 400 && $res['location'] !== '') {
+            $current = resolveUrl($current, $res['location']);
+            if (!preg_match('#^https://#i', $current)) {
+                return null;
+            }
+            continue;
+        }
+        return is_array($res['json']) ? $res['json'] : null;
+    }
+    return null;
+}
+
+/* ==================== 用户档案 ==================== */
+function usersPath(): string
+{
+    return privateDataPath('users.json');
+}
+
+function usersDefault(): array
+{
+    return ['nextId' => 1, 'users' => []];
+}
+
+function normalizeUsers(array $data): array
+{
+    if (!isset($data['users']) || !is_array($data['users'])) {
+        $data['users'] = [];
+    }
+    if (!isset($data['nextId']) || (int) $data['nextId'] < 1) {
+        $max = 0;
+        foreach ($data['users'] as $user) {
+            $max = max($max, (int) ($user['id'] ?? 0));
+        }
+        $data['nextId'] = $max + 1;
+    }
+    return $data;
+}
+
+function readUsers(): array
+{
+    $path = usersPath();
+    if (!is_file($path)) {
+        return usersDefault();
+    }
+    $fh = @fopen($path, 'c+');
+    if (!$fh) {
+        return usersDefault();
+    }
+    $data = usersDefault();
+    if (flock($fh, LOCK_SH)) {
+        $raw = stream_get_contents($fh);
+        $decoded = $raw !== false ? json_decode($raw, true) : null;
+        if (is_array($decoded)) {
+            $data = normalizeUsers($decoded);
+        }
+        flock($fh, LOCK_UN);
+    }
+    fclose($fh);
+    return $data;
+}
+
+function withUsers(callable $callback)
+{
+    $path = usersPath();
+    $dir = dirname($path);
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0755, true);
+    }
+    if (!is_dir($dir) || !is_writable($dir)) {
+        fail('服务器用户数据目录不可写，请联系维护者', 500);
+    }
+    $fh = @fopen($path, 'c+');
+    if (!$fh) {
+        fail('无法打开用户数据，请稍后重试', 500);
+    }
+    if (!flock($fh, LOCK_EX)) {
+        fclose($fh);
+        fail('用户数据繁忙，请稍后重试', 503);
+    }
+    $raw = stream_get_contents($fh);
+    $decoded = $raw !== false ? json_decode($raw, true) : null;
+    $data = is_array($decoded) ? normalizeUsers($decoded) : usersDefault();
+    $result = $callback($data);
+    $encoded = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+    if ($encoded !== false) {
+        rewind($fh);
+        ftruncate($fh, 0);
+        fwrite($fh, $encoded . "\n");
+        fflush($fh);
+    }
+    flock($fh, LOCK_UN);
+    fclose($fh);
+    return $result;
+}
+
+function findUserById(array $data, int $id): ?array
+{
+    foreach ($data['users'] as $user) {
+        if (is_array($user) && (int) ($user['id'] ?? 0) === $id) {
+            return $user;
+        }
+    }
+    return null;
+}
+
+function findUserBySub(array $data, string $sub): ?array
+{
+    foreach ($data['users'] as $user) {
+        if (is_array($user) && (string) ($user['sub'] ?? '') === $sub) {
+            return $user;
+        }
+    }
+    return null;
+}
+
+function normalizeUuid(string $uuid): string
+{
+    return strtolower(preg_replace('/[^a-fA-F0-9]/', '', $uuid) ?? '');
+}
+
+function extractPlayers(array $info): array
+{
+    $players = [];
+    $raw = $info['availableProfiles'] ?? $info['available_profiles'] ?? [];
+    if (is_array($raw)) {
+        foreach ($raw as $player) {
+            if (!is_array($player)) {
+                continue;
+            }
+            $uuid = normalizeUuid((string) ($player['id'] ?? $player['uuid'] ?? ''));
+            $name = trim((string) ($player['name'] ?? ''));
+            if ($uuid === '' || $name === '') {
+                continue;
+            }
+            $players[] = ['uuid' => $uuid, 'name' => limitText($name, 100)];
+            if (count($players) >= 50) {
+                break;
+            }
+        }
+    }
+    $selected = $info['selectedProfile'] ?? $info['selected_profile'] ?? null;
+    $selectedUuid = '';
+    $selectedName = '';
+    if (is_array($selected)) {
+        $selectedUuid = normalizeUuid((string) ($selected['id'] ?? $selected['uuid'] ?? ''));
+        $selectedName = limitText(trim((string) ($selected['name'] ?? '')), 100);
+    }
+    if ($selectedUuid === '' && $players) {
+        $selectedUuid = $players[0]['uuid'];
+        $selectedName = $players[0]['name'];
+    }
+    return [$players, $selectedUuid, $selectedName];
+}
+
+function userAvatar(array $user): string
+{
+    $playerName = trim((string) ($user['playerName'] ?? ''));
+    if ($playerName !== '') {
+        return 'https://skin.yitmc.cn/avatar/player/' . rawurlencode($playerName) . '?size=128&png=true';
+    }
+    $picture = trim((string) ($user['picture'] ?? ''));
+    if ($picture !== '') {
+        return $picture;
+    }
+    return '/logo/logo.png';
+}
+
+function publicUserView(array $user, bool $private = false): array
+{
+    $view = [
+        'id' => (int) ($user['id'] ?? 0),
+        'nickname' => (string) ($user['nickname'] ?? ''),
+        'avatar' => userAvatar($user),
+        'playerUuid' => (string) ($user['playerUuid'] ?? ''),
+        'playerName' => (string) ($user['playerName'] ?? ''),
+        'bio' => (string) ($user['bio'] ?? ''),
+        'socialLinks' => is_array($user['socialLinks'] ?? null) ? $user['socialLinks'] : [],
+        'createdAt' => (int) ($user['createdAt'] ?? 0),
+    ];
+    if (!empty($user['showContact'])) {
+        $view['contact'] = (string) ($user['contact'] ?? '');
+    }
+    if ($private) {
+        $view['email'] = (string) ($user['email'] ?? '');
+        $view['players'] = is_array($user['players'] ?? null) ? $user['players'] : [];
+        $view['isPublic'] = (int) ($user['isPublic'] ?? 1);
+        $view['showContact'] = (int) ($user['showContact'] ?? 0);
+        $view['updatedAt'] = (int) ($user['updatedAt'] ?? 0);
+    }
+    return $view;
+}
+
+function normalizeSocialLinks($raw): array
+{
+    $links = [];
+    if (!is_array($raw)) {
+        return $links;
+    }
+    foreach ($raw as $link) {
+        if (!is_array($link)) {
+            continue;
+        }
+        $label = trim((string) ($link['label'] ?? ''));
+        $url = trim((string) ($link['url'] ?? ''));
+        if ($label === '' || !preg_match('#^https?://#i', $url)) {
+            continue;
+        }
+        $links[] = ['label' => limitText($label, 20), 'url' => limitText($url, 200)];
+        if (count($links) >= 6) {
+            break;
+        }
+    }
+    return $links;
+}
+
+function currentOidcUser(): ?array
+{
+    if (empty($_SESSION['yitmc_user_id'])) {
+        return null;
+    }
+    $data = readUsers();
+    $user = findUserById($data, (int) $_SESSION['yitmc_user_id']);
+    if (!$user) {
+        unset($_SESSION['yitmc_user_id']);
+    }
+    return $user;
+}
+
+function handleOidcStart(): void
+{
+    $cfg = oidcConfig();
+    if (!oidcConfigured($cfg)) {
+        redirectAccount('not_configured');
+    }
+    $state = bin2hex(random_bytes(32));
+    $verifier = bin2hex(random_bytes(32));
+    $challenge = base64url(hash('sha256', $verifier, true));
+    $_SESSION['yitmc_oidc'] = [
+        'state' => $state,
+        'verifier' => $verifier,
+        'created' => time(),
+    ];
+    $params = [
+        'response_type' => 'code',
+        'client_id' => (string) $cfg['client_id'],
+        'redirect_uri' => (string) $cfg['redirect_uri'],
+        'scope' => (string) $cfg['scopes'],
+        'state' => $state,
+        'code_challenge' => $challenge,
+        'code_challenge_method' => 'S256',
+    ];
+    // 用固定 action 的 GET 表单进入皮肤站授权页，避免动态 Location 跳转
+    header('Content-Type: text/html; charset=utf-8');
+    $esc = static function (string $value): string {
+        return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+    };
+    echo '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>正在前往皮肤站…</title></head><body>';
+    echo '<p>正在前往皮肤站登录…</p>';
+    echo '<form id="oidc-form" method="get" action="https://skin.uemcraft.cn/oidc/auth">';
+    foreach ($params as $name => $value) {
+        echo '<input type="hidden" name="' . $esc((string) $name) . '" value="' . $esc((string) $value) . '">';
+    }
+    echo '<noscript><button type="submit">继续登录</button></noscript>';
+    echo '</form><script>document.getElementById("oidc-form").submit()</script></body></html>';
+    exit;
+}
+
+function handleOidcCallback(): void
+{
+    $cfg = oidcConfig();
+    if (!oidcConfigured($cfg)) {
+        redirectAccount('not_configured');
+    }
+    $pending = isset($_SESSION['yitmc_oidc']) && is_array($_SESSION['yitmc_oidc']) ? $_SESSION['yitmc_oidc'] : null;
+    unset($_SESSION['yitmc_oidc']);
+    if (isset($_GET['error'])) {
+        redirectAccount('denied');
+    }
+    $state = isset($_GET['state']) ? (string) $_GET['state'] : '';
+    $code = isset($_GET['code']) ? (string) $_GET['code'] : '';
+    if (!$pending || $code === '' || time() - (int) ($pending['created'] ?? 0) > 600 || !hash_equals((string) ($pending['state'] ?? ''), $state)) {
+        redirectAccount('state');
+    }
+
+    $fields = [
+        'grant_type' => 'authorization_code',
+        'code' => $code,
+        'redirect_uri' => (string) $cfg['redirect_uri'],
+        'client_id' => (string) $cfg['client_id'],
+        'code_verifier' => (string) ($pending['verifier'] ?? ''),
+    ];
+    if (empty($cfg['public_client'])) {
+        $fields['client_secret'] = (string) $cfg['client_secret'];
+    }
+    $tokenRes = oidcHttp('POST', (string) $cfg['token_endpoint'], [
+        'Content-Type: application/x-www-form-urlencoded',
+        'Accept: application/json',
+    ], http_build_query($fields, '', '&', PHP_QUERY_RFC3986));
+    $token = is_array($tokenRes['json']) ? $tokenRes['json'] : [];
+    if (!is_array($tokenRes['json']) && $tokenRes['body'] !== '') {
+        parse_str($tokenRes['body'], $parsed);
+        if (isset($parsed['access_token'])) {
+            $token = $parsed;
+        }
+    }
+    if ($tokenRes['status'] < 200 || $tokenRes['status'] >= 300 || empty($token['access_token'])) {
+        error_log('[oidc] token exchange failed: status=' . $tokenRes['status'] . ' body=' . substr($tokenRes['body'], 0, 300));
+        redirectAccount('exchange');
+    }
+
+    $info = oidcUserinfo((string) $cfg['userinfo_endpoint'], (string) $token['access_token']);
+    $sub = is_array($info) ? trim((string) ($info['sub'] ?? '')) : '';
+    if (!$info || $sub === '') {
+        error_log('[oidc] userinfo failed or missing sub');
+        redirectAccount('userinfo');
+    }
+
+    $userId = withUsers(function (array &$data) use ($info, $sub) {
+        $now = time();
+        [$players, $selectedUuid, $selectedName] = extractPlayers($info);
+        $nickname = trim((string) ($info['nickname'] ?? $info['preferred_username'] ?? ''));
+        $picture = trim((string) ($info['picture'] ?? ''));
+        $email = trim((string) ($info['email'] ?? ''));
+        foreach ($data['users'] as $index => $user) {
+            if (!is_array($user) || (string) ($user['sub'] ?? '') !== $sub) {
+                continue;
+            }
+            if ($nickname !== '') {
+                $data['users'][$index]['nickname'] = limitText($nickname, 100);
+            }
+            if ($picture !== '') {
+                $data['users'][$index]['picture'] = limitText($picture, 500);
+            }
+            if ($email !== '') {
+                $data['users'][$index]['email'] = limitText($email, 255);
+            }
+            if ($players) {
+                $data['users'][$index]['players'] = $players;
+                $data['users'][$index]['playerUuid'] = $selectedUuid;
+                $data['users'][$index]['playerName'] = $selectedName;
+            }
+            $data['users'][$index]['lastLoginAt'] = $now;
+            $data['users'][$index]['updatedAt'] = $now;
+            return (int) ($user['id'] ?? 0);
+        }
+        $id = (int) $data['nextId'];
+        $data['nextId'] = $id + 1;
+        $data['users'][] = [
+            'id' => $id,
+            'sub' => $sub,
+            'nickname' => limitText($nickname !== '' ? $nickname : 'YITMC 成员', 100),
+            'picture' => limitText($picture, 500),
+            'email' => limitText($email, 255),
+            'players' => $players,
+            'playerUuid' => $selectedUuid,
+            'playerName' => $selectedName,
+            'bio' => '',
+            'contact' => '',
+            'socialLinks' => [],
+            'isPublic' => 1,
+            'showContact' => 0,
+            'createdAt' => $now,
+            'updatedAt' => $now,
+            'lastLoginAt' => $now,
+        ];
+        return $id;
+    });
+
+    session_regenerate_id(true);
+    $_SESSION['yitmc_user_id'] = (int) $userId;
+    redirectAccount();
+}
+
 function slugify(string $name): string
 {
     $base = pathinfo($name, PATHINFO_FILENAME);
@@ -429,6 +941,24 @@ function slugify(string $name): string
 }
 
 /* ---------- 主流程 ---------- */
+// OIDC 的授权跳转与回调必须走 GET（浏览器整页跳转）
+$getAction = isset($_GET['action']) ? (string) $_GET['action'] : '';
+if ($getAction === 'oidc_status') {
+    $cfg = oidcConfig();
+    respond([
+        'ok' => true,
+        'configured' => oidcConfigured($cfg),
+        'issuer' => (string) $cfg['issuer'],
+        'login_url' => oidcConfigured($cfg) ? '/admin-api.php?action=oidc_start' : '',
+    ]);
+}
+if ($getAction === 'oidc_start') {
+    handleOidcStart();
+}
+if ($getAction === 'oidc_callback') {
+    handleOidcCallback();
+}
+
 $action = isset($_POST['action']) ? (string) $_POST['action'] : '';
 if ($action === '') {
     $raw = file_get_contents('php://input');
@@ -544,6 +1074,87 @@ switch ($action) {
             fail('待审核留言较多，请稍后再试', 503);
         }
         respond(['ok' => true, 'status' => 'pending']);
+
+    /* ===== 皮肤站登录 / 用户档案 ===== */
+    case 'oidc_me':
+        $current = currentOidcUser();
+        respond([
+            'ok' => true,
+            'configured' => oidcConfigured(oidcConfig()),
+            'user' => $current ? publicUserView($current, true) : null,
+        ]);
+
+    case 'oidc_logout':
+        requireSameOrigin();
+        unset($_SESSION['yitmc_user_id']);
+        respond(['ok' => true]);
+
+    case 'user_update':
+        requireSameOrigin();
+        $current = currentOidcUser();
+        if (!$current) {
+            fail('请先登录', 401, 'LOGIN_REQUIRED');
+        }
+        $input = !empty($GLOBALS['jsonBody']) ? $GLOBALS['jsonBody'] : $_POST;
+        $bio = cleanUserText((string) ($input['bio'] ?? ''));
+        if (charCount($bio) > 200) {
+            fail('个人简介不能超过 200 个字符', 400);
+        }
+        $contact = cleanUserText((string) ($input['contact'] ?? ''));
+        $contact = preg_replace('/\s+/u', ' ', str_replace("\n", ' ', $contact));
+        $contact = trim($contact === null ? '' : $contact);
+        if (charCount($contact) > 100) {
+            fail('联系方式不能超过 100 个字符', 400);
+        }
+        $socialLinks = normalizeSocialLinks($input['socialLinks'] ?? []);
+        $players = is_array($current['players'] ?? null) ? $current['players'] : [];
+        $playerUuid = isset($input['playerUuid']) ? normalizeUuid((string) $input['playerUuid']) : (string) ($current['playerUuid'] ?? '');
+        $playerName = '';
+        foreach ($players as $player) {
+            if (is_array($player) && (string) ($player['uuid'] ?? '') === $playerUuid) {
+                $playerName = (string) ($player['name'] ?? '');
+                break;
+            }
+        }
+        if ($playerUuid !== '' && $playerName === '') {
+            fail('该角色不在你的皮肤站账号下', 400);
+        }
+        $isPublic = isset($input['isPublic']) ? ((int) !empty($input['isPublic'])) : (int) ($current['isPublic'] ?? 1);
+        $showContact = isset($input['showContact']) ? ((int) !empty($input['showContact'])) : (int) ($current['showContact'] ?? 0);
+        $updated = withUsers(function (array &$data) use ($current, $bio, $contact, $socialLinks, $playerUuid, $playerName, $isPublic, $showContact) {
+            foreach ($data['users'] as $index => $user) {
+                if (!is_array($user) || (int) ($user['id'] ?? 0) !== (int) $current['id']) {
+                    continue;
+                }
+                $data['users'][$index]['bio'] = $bio;
+                $data['users'][$index]['contact'] = $contact;
+                $data['users'][$index]['socialLinks'] = $socialLinks;
+                $data['users'][$index]['playerUuid'] = $playerUuid;
+                $data['users'][$index]['playerName'] = $playerName;
+                $data['users'][$index]['isPublic'] = $isPublic;
+                $data['users'][$index]['showContact'] = $showContact;
+                $data['users'][$index]['updatedAt'] = time();
+                return $data['users'][$index];
+            }
+            return null;
+        });
+        if (!$updated) {
+            fail('用户不存在', 404);
+        }
+        respond(['ok' => true, 'user' => publicUserView($updated, true)]);
+
+    case 'user_public':
+        $input = !empty($GLOBALS['jsonBody']) ? $GLOBALS['jsonBody'] : $_POST;
+        $id = (int) ($input['id'] ?? 0);
+        if ($id <= 0) {
+            fail('参数错误', 400);
+        }
+        $data = readUsers();
+        $user = findUserById($data, $id);
+        if (!$user || empty($user['isPublic'])) {
+            fail('该用户不存在或未公开档案', 404);
+        }
+        respond(['ok' => true, 'user' => publicUserView($user)]);
 
     /* ===== 资讯浏览量 ===== */
     case 'news_views':

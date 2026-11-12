@@ -14,6 +14,7 @@
       </nav>
 
       <div class="app-header__actions">
+        <AuthButton />
         <ThemeToggle />
         <button class="app-header__burger" @click="menuOpen = !menuOpen" aria-label="Toggle menu">
           <span></span><span></span><span></span>
@@ -27,6 +28,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { siteConfig } from '@/data'
 import ThemeToggle from '@/components/layout/ThemeToggle.vue'
+import AuthButton from '@/components/layout/AuthButton.vue'
 
 const menuOpen = ref(false)
 const scrolled = ref(false)
