@@ -106,6 +106,15 @@ const router = createRouter({
       },
     },
     {
+      path: '/open',
+      name: 'open',
+      component: () => import('@/views/OpenPlatformView.vue'),
+      meta: {
+        title: '社团开放平台 - YITMC',
+        description: 'YITMC 原创素材与网站源码，以 MIT 协议开放下载。',
+      },
+    },
+    {
       path: '/about',
       name: 'about',
       component: () => import('@/views/AboutView.vue'),

@@ -12,7 +12,7 @@
 [![Vite](https://img.shields.io/badge/Vite-6-646cff?logo=vite&logoColor=white)](https://vite.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-38bdf8?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
-[![License](https://img.shields.io/badge/License-All_Rights_Reserved-orange)](#许可证)
+[![License](https://img.shields.io/badge/License-MIT-green)](#许可证)
 
 [📺 哔哩哔哩](https://space.bilibili.com/3546886464080420) ·
 [🎵 抖音](https://www.douyin.com/user/MS4wLjABAAAA-7Qqtyf0Wz2A18bvNLF8YYD5nRWCiX25Wsx7JfgXePc?from_tab_name=main) ·
@@ -41,9 +41,13 @@ YITMC（燕京理工学院 MC 玩家创作协会）官方门户网站，采用**
 | 路径 | 页面 | 说明 |
 |------|------|------|
 | `/` | 首页 | Logo、社团简介、精选作品、数据亮点、MC 服务器状态、社交媒体 |
-| `/works` | 作品展示 | 分类筛选（复原工程/其他建筑/社团合照）、图片网格、详情弹窗 |
+| `/works` | 作品展示 | 分类筛选、图片网格与作品详情页 |
 | `/news` | 社团动态 | 时间线布局的活动公告与项目进展 |
-| `/members` | 成员风采 | 社团管理团队展示 |
+| `/events` | 活动中心 | 近期活动与往期回顾 |
+| `/docs` | 指南文档 | Markdown 新人指南与服务器文档 |
+| `/wall` | 留言墙 | 登录用户自动审核，匿名留言先审后发 |
+| `/members` | 成员风采 | 管理团队与登录过官网的全体社员 |
+| `/open` | 社团开放平台 | MIT 协议素材、许可证与源码下载 |
 | `/about` | 关于我们 | 社团简介、宗旨、官方信息、组织成员、联系方式 |
 | `/join` | 加入我们 | QQ群/微信群二维码、皮肤站、社交媒体、FAQ |
 
@@ -216,6 +220,19 @@ npm run preview
 2. 添加/替换图片到 `img/` 目录
 3. 重新构建部署：`npm run build`
 
+## 社团开放平台
+
+`/open` 页面展示 YITMC 原创素材与网站源码，并提供逐项下载。素材清单由
+`scripts/generate-open-assets.mjs` 扫描 `img/` 自动生成到 `src/data/open-assets.json`，
+新增素材后运行：
+
+```bash
+npm run assets:open
+```
+
+成员照片、社团合照、官方证明、群二维码与第三方 IP 图片不会进入开放清单，原因见
+[NOTICE.md](./NOTICE.md)。
+
 ## 图标系统
 
 使用自定义 SVG 图标组件 `AppIcon.vue`，位于 `src/components/icons/`。支持 20+ 图标，通过 `name` prop 指定。禁止使用 Emoji 作为图标。
@@ -237,7 +254,12 @@ npm run preview
 
 ## 许可证
 
-本项目为燕京理工学院 MC 玩家创作协会官方网站，代码与素材（含 Logo、作品截图、成员照片）保留所有权利，未经许可请勿商用或二次分发。
+除 [NOTICE.md](./NOTICE.md) 中列出的第三方内容、成员肖像与仅用于身份展示的材料外，
+本仓库的源代码与 YITMC 原创视觉素材均以 [MIT License](./LICENSE) 开放。
+你可以自由使用、修改、分发和商用，但需保留版权声明与许可证文本。
+
+Minecraft 是 Mojang Synergies AB 的商标。MIT 许可证不改变 Mojang 对游戏本身及相关素材的权利，
+也不授予使用 YITMC 名称、Logo 或吉祥物暗示官方认可、赞助或合作的权利。
 
 <div align="center">
 

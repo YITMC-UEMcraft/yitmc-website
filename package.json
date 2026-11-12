@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc --noEmit && vite build && node scripts/generate-sitemap.mjs",
+    "build": "node scripts/generate-open-assets.mjs && vue-tsc --noEmit && vite build && node scripts/generate-sitemap.mjs",
+    "assets:open": "node scripts/generate-open-assets.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

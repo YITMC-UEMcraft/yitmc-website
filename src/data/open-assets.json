@@ -1,0 +1,582 @@
+{
+  "license": "MIT",
+  "licenseUrl": "/LICENSE.txt",
+  "noticeUrl": "https://github.com/YITMC-UEMcraft/yitmc-website/blob/main/NOTICE.md",
+  "repoUrl": "https://github.com/YITMC-UEMcraft/yitmc-website",
+  "repoZipUrl": "https://github.com/YITMC-UEMcraft/yitmc-website/archive/refs/heads/main.zip",
+  "totalAssets": 26,
+  "totalFiles": 49,
+  "totalBytes": 109538001,
+  "categories": [
+    {
+      "id": "brand",
+      "title": "品牌标识",
+      "description": "YITMC 社团 Logo，可用于社团相关宣传与二次创作。",
+      "assets": [
+        {
+          "key": "logo/logo",
+          "name": "YITMC 社团 Logo",
+          "preview": "/logo/logo.png",
+          "bytes": 257848,
+          "variants": [
+            {
+              "format": "PNG",
+              "url": "/logo/logo.png",
+              "downloadName": "logo.png",
+              "bytes": 257848
+            }
+          ]
+        }
+      ],
+      "fileCount": 1,
+      "bytes": 257848
+    },
+    {
+      "id": "mascot",
+      "title": "吉祥物",
+      "description": "沃蒂娜与沃伦的官方形象素材。",
+      "assets": [
+        {
+          "key": "mascot/vodina",
+          "name": "沃蒂娜",
+          "preview": "/mascot/vodina.webp",
+          "bytes": 53112,
+          "variants": [
+            {
+              "format": "WEBP",
+              "url": "/mascot/vodina.webp",
+              "downloadName": "vodina.webp",
+              "bytes": 53112
+            }
+          ]
+        },
+        {
+          "key": "mascot/warren",
+          "name": "沃伦",
+          "preview": "/mascot/warren.webp",
+          "bytes": 67260,
+          "variants": [
+            {
+              "format": "WEBP",
+              "url": "/mascot/warren.webp",
+              "downloadName": "warren.webp",
+              "bytes": 67260
+            }
+          ]
+        }
+      ],
+      "fileCount": 2,
+      "bytes": 120372
+    },
+    {
+      "id": "campus",
+      "title": "校园复刻",
+      "description": "YITMC 校园复刻工程的游戏内截图，预览使用 WebP，下载保留原始格式。",
+      "assets": [
+        {
+          "key": "Background/复原工程/教学楼(白天)1",
+          "name": "教学楼(白天)1",
+          "preview": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E7%99%BD%E5%A4%A9)1.webp",
+          "bytes": 2952114,
+          "variants": [
+            {
+              "format": "PNG",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E7%99%BD%E5%A4%A9)1.png",
+              "downloadName": "教学楼(白天)1.png",
+              "bytes": 2804168
+            },
+            {
+              "format": "WEBP",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E7%99%BD%E5%A4%A9)1.webp",
+              "downloadName": "教学楼(白天)1.webp",
+              "bytes": 147946
+            }
+          ]
+        },
+        {
+          "key": "Background/复原工程/教学楼(白天)12",
+          "name": "教学楼(白天)12",
+          "preview": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E7%99%BD%E5%A4%A9)12.webp",
+          "bytes": 5669998,
+          "variants": [
+            {
+              "format": "PNG",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E7%99%BD%E5%A4%A9)12.png",
+              "downloadName": "教学楼(白天)12.png",
+              "bytes": 5428692
+            },
+            {
+              "format": "WEBP",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E7%99%BD%E5%A4%A9)12.webp",
+              "downloadName": "教学楼(白天)12.webp",
+              "bytes": 241306
+            }
+          ]
+        },
+        {
+          "key": "Background/复原工程/教学楼(白天)3",
+          "name": "教学楼(白天)3",
+          "preview": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E7%99%BD%E5%A4%A9)3.webp",
+          "bytes": 4014055,
+          "variants": [
+            {
+              "format": "PNG",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E7%99%BD%E5%A4%A9)3.png",
+              "downloadName": "教学楼(白天)3.png",
+              "bytes": 3855955
+            },
+            {
+              "format": "WEBP",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E7%99%BD%E5%A4%A9)3.webp",
+              "downloadName": "教学楼(白天)3.webp",
+              "bytes": 158100
+            }
+          ]
+        },
+        {
+          "key": "Background/复原工程/教学楼(白天)4",
+          "name": "教学楼(白天)4",
+          "preview": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E7%99%BD%E5%A4%A9)4.webp",
+          "bytes": 4083797,
+          "variants": [
+            {
+              "format": "PNG",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E7%99%BD%E5%A4%A9)4.png",
+              "downloadName": "教学楼(白天)4.png",
+              "bytes": 3866071
+            },
+            {
+              "format": "WEBP",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E7%99%BD%E5%A4%A9)4.webp",
+              "downloadName": "教学楼(白天)4.webp",
+              "bytes": 217726
+            }
+          ]
+        },
+        {
+          "key": "Background/复原工程/教学楼(白天)5",
+          "name": "教学楼(白天)5",
+          "preview": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E7%99%BD%E5%A4%A9)5.webp",
+          "bytes": 6656237,
+          "variants": [
+            {
+              "format": "PNG",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E7%99%BD%E5%A4%A9)5.png",
+              "downloadName": "教学楼(白天)5.png",
+              "bytes": 6517031
+            },
+            {
+              "format": "WEBP",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E7%99%BD%E5%A4%A9)5.webp",
+              "downloadName": "教学楼(白天)5.webp",
+              "bytes": 139206
+            }
+          ]
+        },
+        {
+          "key": "Background/复原工程/教学楼(白天)5-竖屏",
+          "name": "教学楼(白天)5-竖屏",
+          "preview": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E7%99%BD%E5%A4%A9)5-%E7%AB%96%E5%B1%8F.webp",
+          "bytes": 360336,
+          "variants": [
+            {
+              "format": "JPG",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E7%99%BD%E5%A4%A9)5-%E7%AB%96%E5%B1%8F.jpg",
+              "downloadName": "教学楼(白天)5-竖屏.jpg",
+              "bytes": 286936
+            },
+            {
+              "format": "WEBP",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E7%99%BD%E5%A4%A9)5-%E7%AB%96%E5%B1%8F.webp",
+              "downloadName": "教学楼(白天)5-竖屏.webp",
+              "bytes": 73400
+            }
+          ]
+        },
+        {
+          "key": "Background/复原工程/教学楼(黄昏)1",
+          "name": "教学楼(黄昏)1",
+          "preview": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E9%BB%84%E6%98%8F)1.webp",
+          "bytes": 7602205,
+          "variants": [
+            {
+              "format": "PNG",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E9%BB%84%E6%98%8F)1.png",
+              "downloadName": "教学楼(黄昏)1.png",
+              "bytes": 7399901
+            },
+            {
+              "format": "WEBP",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E9%BB%84%E6%98%8F)1.webp",
+              "downloadName": "教学楼(黄昏)1.webp",
+              "bytes": 202304
+            }
+          ]
+        },
+        {
+          "key": "Background/复原工程/教学楼(黄昏)2",
+          "name": "教学楼(黄昏)2",
+          "preview": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E9%BB%84%E6%98%8F)2.webp",
+          "bytes": 5663953,
+          "variants": [
+            {
+              "format": "PNG",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E9%BB%84%E6%98%8F)2.png",
+              "downloadName": "教学楼(黄昏)2.png",
+              "bytes": 5559567
+            },
+            {
+              "format": "WEBP",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E9%BB%84%E6%98%8F)2.webp",
+              "downloadName": "教学楼(黄昏)2.webp",
+              "bytes": 104386
+            }
+          ]
+        },
+        {
+          "key": "Background/复原工程/教学楼(黄昏)3",
+          "name": "教学楼(黄昏)3",
+          "preview": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E9%BB%84%E6%98%8F)3.webp",
+          "bytes": 4312807,
+          "variants": [
+            {
+              "format": "PNG",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E9%BB%84%E6%98%8F)3.png",
+              "downloadName": "教学楼(黄昏)3.png",
+              "bytes": 4249947
+            },
+            {
+              "format": "WEBP",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E9%BB%84%E6%98%8F)3.webp",
+              "downloadName": "教学楼(黄昏)3.webp",
+              "bytes": 62860
+            }
+          ]
+        },
+        {
+          "key": "Background/复原工程/教学楼(晚上)1",
+          "name": "教学楼(晚上)1",
+          "preview": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E6%99%9A%E4%B8%8A)1.webp",
+          "bytes": 4942057,
+          "variants": [
+            {
+              "format": "PNG",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E6%99%9A%E4%B8%8A)1.png",
+              "downloadName": "教学楼(晚上)1.png",
+              "bytes": 4855861
+            },
+            {
+              "format": "WEBP",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E6%99%9A%E4%B8%8A)1.webp",
+              "downloadName": "教学楼(晚上)1.webp",
+              "bytes": 86196
+            }
+          ]
+        },
+        {
+          "key": "Background/复原工程/教学楼(晚上)2",
+          "name": "教学楼(晚上)2",
+          "preview": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E6%99%9A%E4%B8%8A)2.webp",
+          "bytes": 5171591,
+          "variants": [
+            {
+              "format": "PNG",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E6%99%9A%E4%B8%8A)2.png",
+              "downloadName": "教学楼(晚上)2.png",
+              "bytes": 5086027
+            },
+            {
+              "format": "WEBP",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E6%99%9A%E4%B8%8A)2.webp",
+              "downloadName": "教学楼(晚上)2.webp",
+              "bytes": 85564
+            }
+          ]
+        },
+        {
+          "key": "Background/复原工程/教学楼(晚上)3",
+          "name": "教学楼(晚上)3",
+          "preview": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E6%99%9A%E4%B8%8A)3.webp",
+          "bytes": 6872124,
+          "variants": [
+            {
+              "format": "PNG",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E6%99%9A%E4%B8%8A)3.png",
+              "downloadName": "教学楼(晚上)3.png",
+              "bytes": 6712648
+            },
+            {
+              "format": "WEBP",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E6%99%9A%E4%B8%8A)3.webp",
+              "downloadName": "教学楼(晚上)3.webp",
+              "bytes": 159476
+            }
+          ]
+        },
+        {
+          "key": "Background/复原工程/教学楼(晚上)4",
+          "name": "教学楼(晚上)4",
+          "preview": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E6%99%9A%E4%B8%8A)4.webp",
+          "bytes": 5904695,
+          "variants": [
+            {
+              "format": "PNG",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E6%99%9A%E4%B8%8A)4.png",
+              "downloadName": "教学楼(晚上)4.png",
+              "bytes": 5809269
+            },
+            {
+              "format": "WEBP",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E6%99%9A%E4%B8%8A)4.webp",
+              "downloadName": "教学楼(晚上)4.webp",
+              "bytes": 95426
+            }
+          ]
+        },
+        {
+          "key": "Background/复原工程/教学楼(晚上)5-竖屏",
+          "name": "教学楼(晚上)5-竖屏",
+          "preview": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E6%99%9A%E4%B8%8A)5-%E7%AB%96%E5%B1%8F.webp",
+          "bytes": 1609088,
+          "variants": [
+            {
+              "format": "PNG",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E6%99%9A%E4%B8%8A)5-%E7%AB%96%E5%B1%8F.png",
+              "downloadName": "教学楼(晚上)5-竖屏.png",
+              "bytes": 1535478
+            },
+            {
+              "format": "WEBP",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E6%99%9A%E4%B8%8A)5-%E7%AB%96%E5%B1%8F.webp",
+              "downloadName": "教学楼(晚上)5-竖屏.webp",
+              "bytes": 73610
+            }
+          ]
+        },
+        {
+          "key": "Background/复原工程/教学楼(雨天)1",
+          "name": "教学楼(雨天)1",
+          "preview": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E9%9B%A8%E5%A4%A9)1.webp",
+          "bytes": 7389598,
+          "variants": [
+            {
+              "format": "PNG",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E9%9B%A8%E5%A4%A9)1.png",
+              "downloadName": "教学楼(雨天)1.png",
+              "bytes": 7229850
+            },
+            {
+              "format": "WEBP",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E9%9B%A8%E5%A4%A9)1.webp",
+              "downloadName": "教学楼(雨天)1.webp",
+              "bytes": 159748
+            }
+          ]
+        },
+        {
+          "key": "Background/复原工程/教学楼(雨天)2",
+          "name": "教学楼(雨天)2",
+          "preview": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E9%9B%A8%E5%A4%A9)2.webp",
+          "bytes": 6619879,
+          "variants": [
+            {
+              "format": "PNG",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E9%9B%A8%E5%A4%A9)2.png",
+              "downloadName": "教学楼(雨天)2.png",
+              "bytes": 6499393
+            },
+            {
+              "format": "WEBP",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%95%99%E5%AD%A6%E6%A5%BC(%E9%9B%A8%E5%A4%A9)2.webp",
+              "downloadName": "教学楼(雨天)2.webp",
+              "bytes": 120486
+            }
+          ]
+        },
+        {
+          "key": "Background/复原工程/图书馆",
+          "name": "图书馆",
+          "preview": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E5%9B%BE%E4%B9%A6%E9%A6%86.webp",
+          "bytes": 5372511,
+          "variants": [
+            {
+              "format": "PNG",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E5%9B%BE%E4%B9%A6%E9%A6%86.png",
+              "downloadName": "图书馆.png",
+              "bytes": 5188061
+            },
+            {
+              "format": "WEBP",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E5%9B%BE%E4%B9%A6%E9%A6%86.webp",
+              "downloadName": "图书馆.webp",
+              "bytes": 184450
+            }
+          ]
+        },
+        {
+          "key": "Background/复原工程/图书馆2",
+          "name": "图书馆2",
+          "preview": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E5%9B%BE%E4%B9%A6%E9%A6%862.webp",
+          "bytes": 4512929,
+          "variants": [
+            {
+              "format": "PNG",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E5%9B%BE%E4%B9%A6%E9%A6%862.png",
+              "downloadName": "图书馆2.png",
+              "bytes": 4257079
+            },
+            {
+              "format": "WEBP",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E5%9B%BE%E4%B9%A6%E9%A6%862.webp",
+              "downloadName": "图书馆2.webp",
+              "bytes": 255850
+            }
+          ]
+        },
+        {
+          "key": "Background/复原工程/校门",
+          "name": "校门",
+          "preview": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%A0%A1%E9%97%A8.webp",
+          "bytes": 4951576,
+          "variants": [
+            {
+              "format": "PNG",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%A0%A1%E9%97%A8.png",
+              "downloadName": "校门.png",
+              "bytes": 4817162
+            },
+            {
+              "format": "WEBP",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E6%A0%A1%E9%97%A8.webp",
+              "downloadName": "校门.webp",
+              "bytes": 134414
+            }
+          ]
+        },
+        {
+          "key": "Background/复原工程/艺术楼(白天)",
+          "name": "艺术楼(白天)",
+          "preview": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E8%89%BA%E6%9C%AF%E6%A5%BC(%E7%99%BD%E5%A4%A9).webp",
+          "bytes": 7804876,
+          "variants": [
+            {
+              "format": "PNG",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E8%89%BA%E6%9C%AF%E6%A5%BC(%E7%99%BD%E5%A4%A9).png",
+              "downloadName": "艺术楼(白天).png",
+              "bytes": 7643790
+            },
+            {
+              "format": "WEBP",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E8%89%BA%E6%9C%AF%E6%A5%BC(%E7%99%BD%E5%A4%A9).webp",
+              "downloadName": "艺术楼(白天).webp",
+              "bytes": 161086
+            }
+          ]
+        },
+        {
+          "key": "Background/复原工程/艺术楼(黄昏)",
+          "name": "艺术楼(黄昏)",
+          "preview": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E8%89%BA%E6%9C%AF%E6%A5%BC(%E9%BB%84%E6%98%8F).webp",
+          "bytes": 5454063,
+          "variants": [
+            {
+              "format": "PNG",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E8%89%BA%E6%9C%AF%E6%A5%BC(%E9%BB%84%E6%98%8F).png",
+              "downloadName": "艺术楼(黄昏).png",
+              "bytes": 5369785
+            },
+            {
+              "format": "WEBP",
+              "url": "/Background/%E5%A4%8D%E5%8E%9F%E5%B7%A5%E7%A8%8B/%E8%89%BA%E6%9C%AF%E6%A5%BC(%E9%BB%84%E6%98%8F).webp",
+              "downloadName": "艺术楼(黄昏).webp",
+              "bytes": 84278
+            }
+          ]
+        }
+      ],
+      "fileCount": 42,
+      "bytes": 107920489
+    },
+    {
+      "id": "works",
+      "title": "建筑作品",
+      "description": "社团成员原创建筑作品截图。",
+      "assets": [
+        {
+          "key": "Background/其他建筑工程/竞技场",
+          "name": "竞技场",
+          "preview": "/Background/%E5%85%B6%E4%BB%96%E5%BB%BA%E7%AD%91%E5%B7%A5%E7%A8%8B/%E7%AB%9E%E6%8A%80%E5%9C%BA.webp",
+          "bytes": 527120,
+          "variants": [
+            {
+              "format": "JPG",
+              "url": "/Background/%E5%85%B6%E4%BB%96%E5%BB%BA%E7%AD%91%E5%B7%A5%E7%A8%8B/%E7%AB%9E%E6%8A%80%E5%9C%BA.jpg",
+              "downloadName": "竞技场.jpg",
+              "bytes": 462708
+            },
+            {
+              "format": "WEBP",
+              "url": "/Background/%E5%85%B6%E4%BB%96%E5%BB%BA%E7%AD%91%E5%B7%A5%E7%A8%8B/%E7%AB%9E%E6%8A%80%E5%9C%BA.webp",
+              "downloadName": "竞技场.webp",
+              "bytes": 64412
+            }
+          ]
+        },
+        {
+          "key": "Background/其他建筑工程/竞技场2",
+          "name": "竞技场2",
+          "preview": "/Background/%E5%85%B6%E4%BB%96%E5%BB%BA%E7%AD%91%E5%B7%A5%E7%A8%8B/%E7%AB%9E%E6%8A%80%E5%9C%BA2.webp",
+          "bytes": 712172,
+          "variants": [
+            {
+              "format": "JPG",
+              "url": "/Background/%E5%85%B6%E4%BB%96%E5%BB%BA%E7%AD%91%E5%B7%A5%E7%A8%8B/%E7%AB%9E%E6%8A%80%E5%9C%BA2.jpg",
+              "downloadName": "竞技场2.jpg",
+              "bytes": 604532
+            },
+            {
+              "format": "WEBP",
+              "url": "/Background/%E5%85%B6%E4%BB%96%E5%BB%BA%E7%AD%91%E5%B7%A5%E7%A8%8B/%E7%AB%9E%E6%8A%80%E5%9C%BA2.webp",
+              "downloadName": "竞技场2.webp",
+              "bytes": 107640
+            }
+          ]
+        }
+      ],
+      "fileCount": 4,
+      "bytes": 1239292
+    }
+  ],
+  "excluded": [
+    {
+      "id": "people",
+      "title": "成员个人照片",
+      "reason": "涉及成员肖像权，未纳入开放下载。",
+      "fileCount": 4
+    },
+    {
+      "id": "group-photos",
+      "title": "社团活动合照",
+      "reason": "涉及参与成员肖像权，未纳入开放下载。",
+      "fileCount": 8
+    },
+    {
+      "id": "certificate",
+      "title": "官方社团证明",
+      "reason": "仅用于社团身份展示，不开放再分发。",
+      "fileCount": 1
+    },
+    {
+      "id": "qr-codes",
+      "title": "QQ / 微信群二维码",
+      "reason": "群二维码会变化，不作为素材开放。",
+      "fileCount": 2
+    },
+    {
+      "id": "third-party",
+      "title": "第三方 IP 图片",
+      "reason": "原神、明日方舟等第三方作品版权不属于 YITMC。",
+      "fileCount": 4
+    }
+  ]
+}
