@@ -7,13 +7,15 @@
       </div>
       <div class="timeline__card block-inset">
         <div class="timeline__header">
-          <span class="timeline__type" :class="`timeline__type--${item.type}`"><AppIcon :name="typeIcon(item.type)" :size="14" /> {{ typeLabel(item.type) }}</span>
+          <span class="timeline__type" :class="`timeline__type--${item.type}`"><AppIcon :name="newsTypeMeta(item.type).icon" :size="14" /> {{ newsTypeMeta(item.type).label }}</span>
           <span class="timeline__date">{{ item.date }}</span>
         </div>
         <img v-if="item.image" :src="item.image" :alt="item.title" loading="lazy" class="timeline__pic" />
-        <h3 class="timeline__title">{{ item.title }}</h3>
+        <h3 class="timeline__title">
+          <RouterLink :to="`/news/${item.id}`">{{ item.title }}</RouterLink>
+        </h3>
         <p class="timeline__summary">{{ item.summary }}</p>
-        <p v-if="item.content" class="timeline__content">{{ item.content }}</p>
+        <RouterLink :to="`/news/${item.id}`" class="timeline__more">阅读全文 →</RouterLink>
       </div>
     </div>
   </div>
@@ -22,29 +24,9 @@
 <script setup lang="ts">
 import AppIcon from '@/components/icons/AppIcon.vue'
 import { newsData } from '@/data'
+import { newsTypeMeta } from '@/lib/news'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const newsItems = (newsData as any).news
-
-function typeIcon(type: string): string {
-  const icons: Record<string, string> = {
-    announcement: 'megaphone',
-    project: 'construction',
-    achievement: 'trophy',
-    event: 'party-popper',
-  }
-  return icons[type] || 'info'
-}
-
-function typeLabel(type: string): string {
-  const labels: Record<string, string> = {
-    announcement: '公告',
-    project: '项目',
-    achievement: '成果',
-    event: '活动',
-  }
-  return labels[type] || type
-}
+const newsItems = newsData.news
 </script>
 
 <style scoped>
@@ -55,7 +37,7 @@ function typeLabel(type: string): string {
 .timeline__item {
   display: flex;
   gap: var(--space-lg);
-  animation: fadeInUp 0.5s var(--ease-pixel) both;
+  animation: fadeUp 0.5s var(--ease-pixel) both;
 }
 
 .timeline__marker {
@@ -135,18 +117,27 @@ function typeLabel(type: string): string {
   margin-bottom: var(--space-sm);
 }
 
+.timeline__title a {
+  color: inherit;
+}
+
+.timeline__title a:hover {
+  color: var(--color-accent-hover);
+}
+
 .timeline__summary {
   font-size: var(--text-sm);
   color: var(--color-text-muted);
   line-height: 1.6;
 }
 
-.timeline__content {
-  font-size: var(--text-sm);
-  color: var(--color-text);
+.timeline__more {
+  display: inline-block;
   margin-top: var(--space-md);
   padding-top: var(--space-md);
   border-top: var(--border-width-sm) dashed var(--color-surface-light);
-  line-height: 1.6;
+  font-size: var(--text-sm);
+  color: var(--color-accent);
+  width: 100%;
 }
 </style>

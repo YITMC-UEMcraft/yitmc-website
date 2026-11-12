@@ -3,7 +3,45 @@ import worksJson from './works.json'
 import newsJson from './news.json'
 import membersJson from './members.json'
 import statsJson from './stats.json'
+import eventsJson from './events.json'
+import docsJson from './docs.json'
 import serversJson from './servers.json'
+
+/** 社团活动 */
+export interface ClubEvent {
+  id: number
+  title: string
+  status: 'upcoming' | 'ongoing' | 'past'
+  dateStart: string
+  dateEnd: string
+  dateLabel: string
+  location: string
+  summary: string
+  cover: string
+  link: string
+  featured: boolean
+}
+
+/** 社团动态 */
+export interface NewsItem {
+  id: number
+  title: string
+  date: string
+  type: string
+  summary: string
+  content: string
+  image?: string
+}
+
+/** 指南文档 */
+export interface ClubDoc {
+  id: string
+  title: string
+  category: string
+  content: string
+  order: number
+  updatedAt: string
+}
 
 /** 我的世界服务器状态配置 */
 export interface McServerConfig {
@@ -25,9 +63,11 @@ export interface McServerConfig {
  */
 export const siteConfig: typeof siteConfigJson = siteConfigJson
 export const worksData: typeof worksJson = worksJson
-export const newsData: typeof newsJson = newsJson
+export const newsData: { news: NewsItem[] } = newsJson as { news: NewsItem[] }
 export const membersData: typeof membersJson = membersJson
 export const statsData: typeof statsJson = statsJson
+export const eventsData: { events: ClubEvent[] } = eventsJson as { events: ClubEvent[] }
+export const docsData: { docs: ClubDoc[] } = docsJson as { docs: ClubDoc[] }
 export const servers: McServerConfig[] = (serversJson as { servers: McServerConfig[] }).servers
 
 const FILES = [
@@ -36,6 +76,8 @@ const FILES = [
   { name: 'news.json', data: newsData },
   { name: 'members.json', data: membersData },
   { name: 'stats.json', data: statsData },
+  { name: 'events.json', data: eventsData },
+  { name: 'docs.json', data: docsData },
 ] as const
 
 function replaceInPlace(target: Record<string, unknown>, source: Record<string, unknown>) {

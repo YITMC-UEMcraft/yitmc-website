@@ -1,16 +1,18 @@
 <template>
   <div class="work-grid stagger-children">
-    <PixelCard v-for="work in filteredWorks" :key="work.id" clickable @click="$emit('select', work)">
-      <template #image>
-        <img :src="work.image" :alt="work.title" loading="lazy" />
-      </template>
-      <h3 class="work-grid__title">{{ work.title }}</h3>
-      <p class="work-grid__desc">{{ work.description }}</p>
-      <div class="work-grid__meta">
-        <span class="work-grid__tag">{{ getCategoryLabel(work.category) }}</span>
-        <span class="work-grid__date">{{ work.date }}</span>
-      </div>
-    </PixelCard>
+    <RouterLink v-for="work in filteredWorks" :key="work.id" :to="`/works/${work.id}`" class="work-grid__card">
+      <PixelCard>
+        <template #image>
+          <img :src="work.image" :alt="work.title" loading="lazy" />
+        </template>
+        <h3 class="work-grid__title">{{ work.title }}</h3>
+        <p class="work-grid__desc">{{ work.description }}</p>
+        <div class="work-grid__meta">
+          <span class="work-grid__tag">{{ getCategoryLabel(work.category) }}</span>
+          <span class="work-grid__date">{{ work.date }}</span>
+        </div>
+      </PixelCard>
+    </RouterLink>
   </div>
 
   <p v-if="filteredWorks.length === 0" class="work-grid__empty">
@@ -24,7 +26,6 @@ import PixelCard from '@/components/ui/PixelCard.vue'
 import { worksData } from '@/data'
 
 const props = defineProps<{ activeCategory: string }>()
-defineEmits<{ select: [work: any] }>()
 
 const filteredWorks = computed(() => {
   if (props.activeCategory === 'all') return worksData.works
@@ -41,6 +42,11 @@ function getCategoryLabel(key: string): string {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: var(--space-lg);
+}
+
+.work-grid__card {
+  display: block;
+  color: inherit;
 }
 
 .work-grid__title {

@@ -68,7 +68,10 @@ defineProps<{
 const route = useRoute()
 const router = useRouter()
 const visible = ref(false)
-const collapsed = ref(false)
+// 手机屏幕寸土寸金，默认收成小头像，点开再看立绘
+const collapsed = ref(
+  typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches,
+)
 
 let observer: IntersectionObserver | null = null
 let timer = 0

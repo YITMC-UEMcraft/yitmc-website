@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin-api.php
+Disallow: /status-api.php
+Disallow: /uploads/
+Disallow: /homepage/
+Disallow: /data/
+
+Sitemap: https://www.yitmc.cn/sitemap.xml

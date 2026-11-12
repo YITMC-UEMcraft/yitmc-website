@@ -53,6 +53,8 @@ const navLinks = [
   { to: '/', label: '首页' },
   { to: '/works', label: '作品展示' },
   { to: '/news', label: '社团动态' },
+  { to: '/events', label: '活动中心' },
+  { to: '/docs', label: '指南文档' },
   { to: '/members', label: '成员风采' },
   { to: '/about', label: '关于我们' },
   { to: '/join', label: '加入我们' },

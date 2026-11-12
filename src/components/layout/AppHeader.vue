@@ -32,6 +32,8 @@ const navLinks = [
   { to: '/', label: '首页' },
   { to: '/works', label: '作品' },
   { to: '/news', label: '动态' },
+  { to: '/events', label: '活动' },
+  { to: '/docs', label: '指南' },
   { to: '/members', label: '成员' },
   { to: '/about', label: '关于' },
   { to: '/join', label: '加入' },

@@ -10,10 +10,8 @@
 
       <div class="works-page__inner" data-reveal data-reveal-delay="2">
         <FilterTabs v-model="activeCategory" :categories="worksData.categories" />
-        <WorkGrid :active-category="activeCategory" @select="selectedWork = $event" />
+        <WorkGrid :active-category="activeCategory" />
       </div>
-
-      <WorkDetail :work="selectedWork" @close="selectedWork = null" />
     </main>
     <AppFooter />
   </PixelBackground>
@@ -27,11 +25,9 @@ import AppFooter from '@/components/layout/AppFooter.vue'
 import BlockDivider from '@/components/ui/BlockDivider.vue'
 import FilterTabs from '@/components/works/FilterTabs.vue'
 import WorkGrid from '@/components/works/WorkGrid.vue'
-import WorkDetail from '@/components/works/WorkDetail.vue'
 import { worksData } from '@/data'
 
 const activeCategory = ref('all')
-const selectedWork = ref<any>(null)
 </script>
 
 <style scoped>

@@ -1,0 +1,43 @@
+{
+  "events": [
+    {
+      "id": 1,
+      "title": "协办像素沙盒数字孪生交流会",
+      "status": "past",
+      "dateStart": "2026-07-25",
+      "dateEnd": "2026-07-25",
+      "dateLabel": "2026.07",
+      "location": "",
+      "summary": "与校内外 Minecraft 爱好者共同探讨游戏技术与数字孪生应用，并展示校园复刻工程成果。",
+      "cover": "",
+      "link": "",
+      "featured": true
+    },
+    {
+      "id": 2,
+      "title": "创意建筑赛",
+      "status": "past",
+      "dateStart": "2026-05",
+      "dateEnd": "2026-05",
+      "dateLabel": "2026.05",
+      "location": "",
+      "summary": "社团内部自由主题建筑赛，作品涵盖中式建筑、奇幻场景与现代都市等多种风格。",
+      "cover": "/Background/复原工程/艺术楼(黄昏).webp",
+      "link": "",
+      "featured": false
+    },
+    {
+      "id": 3,
+      "title": "寒假服务器开放",
+      "status": "past",
+      "dateStart": "2026-01",
+      "dateEnd": "2026-02",
+      "dateLabel": "2026.01",
+      "location": "线上",
+      "summary": "寒假期间开放社团专属服务器，成员共同建设、交流技术，完成了多项协作建筑项目。",
+      "cover": "",
+      "link": "",
+      "featured": false
+    }
+  ]
+}

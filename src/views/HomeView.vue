@@ -4,6 +4,7 @@
     <main>
       <HeroSection />
       <IntroSection />
+      <HomeFeed />
       <FeaturedWorks />
       <StatsSection />
       <ServerStatus />
@@ -19,6 +20,7 @@ import AppHeader from '@/components/layout/AppHeader.vue'
 import AppFooter from '@/components/layout/AppFooter.vue'
 import HeroSection from '@/components/home/HeroSection.vue'
 import IntroSection from '@/components/home/IntroSection.vue'
+import HomeFeed from '@/components/home/HomeFeed.vue'
 import FeaturedWorks from '@/components/home/FeaturedWorks.vue'
 import StatsSection from '@/components/home/StatsSection.vue'
 import ServerStatus from '@/components/home/ServerStatus.vue'
