@@ -28,13 +28,35 @@ unset($adminConfigFile, $adminConfig);
 ini_set('display_errors', '0');
 error_reporting(E_ALL);
 
+/* 登录会话：系统默认只保留 24 分钟，这里改用私有目录并把有效期延长到 30 天 */
+define('YITMC_SESSION_TTL', 60 * 60 * 24 * 30);
+$sessionDir = '/var/www/yitmc-admin/sessions';
+if (is_dir($sessionDir) && is_writable($sessionDir)) {
+    ini_set('session.save_path', $sessionDir);
+}
+ini_set('session.gc_maxlifetime', (string) YITMC_SESSION_TTL);
+ini_set('session.gc_probability', '1');
+ini_set('session.gc_divisor', '100');
 session_set_cookie_params([
-    'lifetime' => 60 * 60 * 24 * 14,
+    'lifetime' => YITMC_SESSION_TTL,
     'path' => '/',
     'httponly' => true,
     'samesite' => 'Lax',
 ]);
 session_start();
+
+// 已登录用户每次访问都续期，避免“用着用着掉登录”
+if (!empty($_SESSION['yitmc_user_id']) || !empty($_SESSION['yitmc_admin'])) {
+    $_SESSION['yitmc_seen_at'] = time();
+    if (!headers_sent()) {
+        setcookie(session_name(), session_id(), [
+            'expires' => time() + YITMC_SESSION_TTL,
+            'path' => '/',
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+    }
+}
 
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
