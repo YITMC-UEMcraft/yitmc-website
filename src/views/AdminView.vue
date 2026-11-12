@@ -119,6 +119,74 @@
           <button type="button" class="save-btn" :disabled="busy" @click="save('news.json')">保存「社团动态」</button>
         </section>
 
+        <section v-show="tab === 'events'">
+          <h2>活动中心</h2>
+          <p class="hint">「即将到来 / 进行中」显示在近期活动，「已结束」显示在往期回顾。状态由管理员手动选择。</p>
+          <div v-for="(e, i) in events.events" :key="'e' + i" class="item-card">
+            <header>
+              <b>{{ e.title || '(未命名活动)' }}</b>
+              <button type="button" class="danger" @click="del(events.events, i, '这场活动')">删除</button>
+            </header>
+            <div class="field-grid">
+              <label><span>标题</span><input v-model="e.title" /></label>
+              <label><span>状态</span>
+                <select v-model="e.status">
+                  <option value="upcoming">即将到来</option>
+                  <option value="ongoing">进行中</option>
+                  <option value="past">已结束</option>
+                </select>
+              </label>
+              <label><span>日期标签</span><input v-model="e.dateLabel" placeholder="如 2026.11" /></label>
+              <label><span>开始日期</span><input v-model="e.dateStart" placeholder="如 2026-11-20" /></label>
+              <label><span>结束日期（可留空）</span><input v-model="e.dateEnd" placeholder="如 2026-11-21" /></label>
+              <label><span>地点（可留空）</span><input v-model="e.location" placeholder="如 线上 / 报告厅" /></label>
+              <label><span>编号 ID</span><input v-model.number="e.id" /></label>
+            </div>
+            <label class="wide"><span>摘要</span><textarea v-model="e.summary" rows="2"></textarea></label>
+            <div class="image-field">
+              <span>封面（可选）</span>
+              <img v-if="e.cover" :src="e.cover" alt="" />
+              <input v-model="e.cover" placeholder="留空显示占位图" />
+              <button type="button" @click="pickImage('events.json', e, 'cover')">上传封面</button>
+              <button v-if="e.cover" type="button" class="danger" @click="e.cover = ''">移除封面</button>
+            </div>
+            <div class="field-grid">
+              <label><span>跳转链接（可留空）</span><input v-model="e.link" placeholder="/join 或 https://..." /></label>
+              <label class="checkbox-field"><span>首页精选</span><input v-model="e.featured" type="checkbox" /></label>
+            </div>
+          </div>
+          <button type="button" class="add-btn" :disabled="busy" @click="addEvent">+ 添加一场活动</button>
+          <button type="button" class="save-btn" :disabled="busy" @click="save('events.json')">保存「活动中心」</button>
+        </section>
+
+        <section v-show="tab === 'docs'">
+          <h2>指南文档</h2>
+          <p class="hint">正文支持 Markdown（标题、列表、表格、代码块、链接）。文档 ID 会用作访问地址：/docs/ID。</p>
+          <div v-for="(d, i) in docs.docs" :key="'d' + i" class="item-card">
+            <header>
+              <b>{{ d.title || '(未命名文档)' }}</b>
+              <button type="button" class="danger" @click="del(docs.docs, i, '这篇文档')">删除</button>
+            </header>
+            <div class="field-grid">
+              <label><span>标题</span><input v-model="d.title" /></label>
+              <label><span>文档 ID（英文/数字/-）</span><input v-model="d.id" placeholder="如 getting-started" /></label>
+              <label><span>分类</span><input v-model="d.category" list="doc-categories" /></label>
+              <label><span>排序（小在前）</span><input v-model.number="d.order" type="number" /></label>
+              <label><span>更新日期</span><input v-model="d.updatedAt" placeholder="如 2026-11-12" /></label>
+            </div>
+            <datalist id="doc-categories">
+              <option v-for="c in docCategories" :key="c" :value="c" />
+            </datalist>
+            <label class="wide"><span>正文（Markdown）</span><textarea v-model="d.content" rows="10"></textarea></label>
+            <button type="button" class="add-btn" @click="docPreview[i] = !docPreview[i]">
+              {{ docPreview[i] ? '收起预览' : '预览 Markdown' }}
+            </button>
+            <div v-if="docPreview[i]" class="doc-preview" v-html="renderMarkdown(d.content).html"></div>
+          </div>
+          <button type="button" class="add-btn" :disabled="busy" @click="addDoc">+ 添加一篇文档</button>
+          <button type="button" class="save-btn" :disabled="busy" @click="save('docs.json')">保存「指南文档」</button>
+        </section>
+
         <section v-show="tab === 'members'">
           <h2>成员风采（管理团队）</h2>
           <div v-for="(m, i) in members.leadership" :key="'m' + i" class="item-card">
@@ -176,6 +244,10 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import {
+  siteConfig, worksData, newsData, membersData, statsData, eventsData, docsData,
+} from '@/data'
+import { renderMarkdown } from '@/lib/markdown'
 
 const API = '/admin-api.php'
 
@@ -183,6 +255,8 @@ const tabs = [
   { key: 'site', label: '联系方式' },
   { key: 'works', label: '作品展示' },
   { key: 'news', label: '社团动态' },
+  { key: 'events', label: '活动中心' },
+  { key: 'docs', label: '指南文档' },
   { key: 'members', label: '成员风采' },
   { key: 'stats', label: '首页数据' },
   { key: 'settings', label: '设置' },
@@ -226,6 +300,12 @@ const works = computed(() => dataFiles.value['works.json'] ?? { categories: [], 
 const news = computed(() => dataFiles.value['news.json'] ?? { news: [] })
 const members = computed(() => dataFiles.value['members.json'] ?? { leadership: [] })
 const stats = computed(() => dataFiles.value['stats.json'] ?? { stats: [] })
+const events = computed(() => dataFiles.value['events.json'] ?? { events: [] })
+const docs = computed(() => dataFiles.value['docs.json'] ?? { docs: [] })
+const docCategories = computed<string[]>(() =>
+  [...new Set<string>(docs.value.docs.map((d: any) => String(d.category || '')).filter(Boolean))],
+)
+const docPreview = reactive<Record<number, boolean>>({})
 
 function flash(text: string, error = false) {
   msg.value = text
@@ -252,8 +332,32 @@ async function api(body?: FormData | Record<string, unknown>): Promise<any> {
   return json
 }
 
+function cloneValue<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T
+}
+
+/** 服务器上缺失或损坏的数据文件回落到内置默认值，避免新模块的空对象导致表单报错 */
 function enterEditor(st: any) {
-  dataFiles.value = st.files
+  const files: Record<string, any> = st.files || {}
+  const ensure = (name: string, valid: boolean, fallback: unknown) => {
+    if (!valid) files[name] = cloneValue(fallback)
+  }
+  const siteFile = files['site-config.json']
+  ensure('site-config.json', !!siteFile && typeof siteFile === 'object' && 'clubName' in siteFile, siteConfig)
+  const worksFile = files['works.json']
+  ensure('works.json', !!worksFile && Array.isArray(worksFile.works) && Array.isArray(worksFile.categories), worksData)
+  const newsFile = files['news.json']
+  ensure('news.json', !!newsFile && Array.isArray(newsFile.news), newsData)
+  const membersFile = files['members.json']
+  ensure('members.json', !!membersFile && Array.isArray(membersFile.leadership), membersData)
+  const statsFile = files['stats.json']
+  ensure('stats.json', !!statsFile && Array.isArray(statsFile.stats), statsData)
+  const eventsFile = files['events.json']
+  ensure('events.json', !!eventsFile && Array.isArray(eventsFile.events), eventsData)
+  const docsFile = files['docs.json']
+  ensure('docs.json', !!docsFile && Array.isArray(docsFile.docs), docsData)
+
+  dataFiles.value = files
   phase.value = 'ready'
 }
 
@@ -358,6 +462,34 @@ function addNews() {
   })
 }
 
+function addEvent() {
+  const now = new Date()
+  events.value.events.unshift({
+    id: nextId(events.value.events),
+    title: '',
+    status: 'upcoming',
+    dateStart: today(),
+    dateEnd: '',
+    dateLabel: `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}`,
+    location: '',
+    summary: '',
+    cover: '',
+    link: '',
+    featured: false,
+  })
+}
+
+function addDoc() {
+  docs.value.docs.push({
+    id: `doc-${Date.now().toString(36)}`,
+    title: '',
+    category: docCategories.value[0] || '新人指南',
+    content: '',
+    order: docs.value.docs.length + 1,
+    updatedAt: today(),
+  })
+}
+
 function addMember() {
   members.value.leadership.push({
     id: nextId(members.value.leadership),
@@ -404,6 +536,16 @@ onMounted(bootstrap)
 .field-grid label, .wide { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #9a9788; }
 .wide { margin-bottom: 10px; }
 input, textarea, select { width: 100%; box-sizing: border-box; padding: 9px 10px; border-radius: 7px; border: 1px solid #3a3d45; background: #191c22; color: #e8e6d9; font-size: 14px; font-family: inherit; }
+.checkbox-field { flex-direction: row; align-items: center; gap: 8px; }
+.checkbox-field input { width: auto; }
+.doc-preview { margin: 4px 0 14px; padding: 14px; border: 1px solid #2a2d34; border-radius: 8px; background: #0f1115; color: #d8d5c7; line-height: 1.8; max-height: 420px; overflow: auto; }
+.doc-preview :deep(h1), .doc-preview :deep(h2), .doc-preview :deep(h3) { margin: 14px 0 8px; color: #e8e6d9; }
+.doc-preview :deep(p), .doc-preview :deep(ul), .doc-preview :deep(ol) { margin: 0 0 10px; }
+.doc-preview :deep(ul), .doc-preview :deep(ol) { padding-left: 1.4em; }
+.doc-preview :deep(code) { background: #191c22; border: 1px solid #2a2d34; padding: 1px 4px; }
+.doc-preview :deep(pre) { background: #191c22; border: 1px solid #2a2d34; padding: 10px; overflow: auto; }
+.doc-preview :deep(table) { width: 100%; border-collapse: collapse; }
+.doc-preview :deep(th), .doc-preview :deep(td) { border: 1px solid #2a2d34; padding: 4px 8px; }
 textarea { resize: vertical; }
 .row-3 { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end; margin-bottom: 8px; }
 .item-card { border: 1px solid #2a2d34; border-radius: 10px; padding: 14px; margin-bottom: 14px; background: #14161b; }
