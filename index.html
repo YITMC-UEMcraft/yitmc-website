@@ -7,6 +7,11 @@
     <meta name="theme-color" content="#1a1a1a" />
     <script>
       (function () {
+        // 统一到 www，避免 www / 裸域各存一份登录 Cookie
+        if (location.hostname === 'yitmc.cn') {
+          location.replace('https://www.yitmc.cn' + location.pathname + location.search + location.hash)
+          return
+        }
         try {
           var theme = localStorage.getItem('yitmc-theme')
           if (theme === 'light' || theme === 'dark') {
