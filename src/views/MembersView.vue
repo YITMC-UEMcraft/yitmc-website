@@ -13,6 +13,11 @@
           <MemberCard v-for="member in membersData.leadership" :key="member.id" :member="member" />
         </div>
 
+        <div class="members-page__join">
+          <p>想要成为YITMC的一员吗？</p>
+          <PixelButton to="/join" variant="gold">加入我们</PixelButton>
+        </div>
+
         <section class="members-all" data-reveal>
           <header class="members-all__head">
             <div>
@@ -32,11 +37,6 @@
           </div>
           <p class="members-all__note">未公开个人档案的社员只显示昵称、头像与游戏角色。</p>
         </section>
-
-        <div class="members-page__join">
-          <p>想要成为YITMC的一员吗？</p>
-          <PixelButton to="/join" variant="gold">加入我们</PixelButton>
-        </div>
       </div>
     </main>
     <AppFooter />
@@ -171,7 +171,8 @@ onMounted(loadSiteMembers)
 
 .members-page__join {
   text-align: center;
-  margin-top: var(--space-3xl);
+  margin-top: var(--space-2xl);
+  margin-bottom: var(--space-3xl);
   padding: var(--space-2xl);
   background: var(--color-surface);
   border: var(--border-width) solid var(--color-brown);
