@@ -298,6 +298,88 @@
             </div>
           </div>
           <button type="button" class="add-btn" :disabled="busy" @click="addPclLink">+ 添加快捷按钮</button>
+
+          <details class="sub-block" open>
+            <summary>自定义卡片（{{ pcl.cards.length }}）</summary>
+            <p class="hint">
+              卡片会插在 PCL 主页欢迎卡片和服务器列表之间。文字里可用
+              <code>{%year%}</code>、<code>{%date%}</code>、<code>{%weekday%}</code>、
+              <code>{%news_1_title%}</code>、<code>{%news_1_url%}</code>，以及下方自定义变量。
+            </p>
+
+            <div v-for="(card, ci) in pcl.cards" :key="'pclcard' + ci" class="item-card">
+              <header>
+                <b>卡片 {{ ci + 1 }}：{{ card.title || '(未命名)' }}</b>
+                <button type="button" class="danger" @click="del(pcl.cards, ci, '这张卡片')">删除卡片</button>
+              </header>
+              <div class="field-grid">
+                <label><span>卡片标题</span><input v-model="card.title" /></label>
+                <label class="checkbox-field"><span>启用</span><input v-model="card.enabled" type="checkbox" /></label>
+              </div>
+
+              <div v-for="(row, ri) in card.rows" :key="'row' + ri" class="pcl-row">
+                <div class="field-grid">
+                  <label><span>行类型</span>
+                    <select v-model="row.type">
+                      <option value="text">文本</option>
+                      <option value="list_item">列表项</option>
+                      <option value="hint">提示条</option>
+                      <option value="divider">分隔线</option>
+                    </select>
+                  </label>
+                  <template v-if="row.type === 'text'">
+                    <label><span>文本</span><input v-model="row.text" /></label>
+                    <label><span>字号（10–24）</span><input v-model.number="row.fontSize" type="number" min="10" max="24" /></label>
+                  </template>
+                  <template v-else-if="row.type === 'list_item'">
+                    <label><span>标题</span><input v-model="row.title" /></label>
+                    <label><span>信息</span><input v-model="row.info" /></label>
+                    <label><span>图标（方块名 / URL）</span><input v-model="row.logo" placeholder="GoldBlock" /></label>
+                    <label><span>链接（可留空）</span><input v-model="row.url" placeholder="https://..." /></label>
+                  </template>
+                  <template v-else-if="row.type === 'hint'">
+                    <label><span>提示文字</span><input v-model="row.text" /></label>
+                    <label><span>颜色</span>
+                      <select v-model="row.theme">
+                        <option value="Blue">Blue</option>
+                        <option value="Red">Red</option>
+                        <option value="Yellow">Yellow</option>
+                        <option value="Green">Green</option>
+                      </select>
+                    </label>
+                  </template>
+                  <template v-else>
+                    <label><span>分隔文字（可留空）</span><input v-model="row.text" placeholder="默认 ────────────" /></label>
+                  </template>
+                </div>
+                <button type="button" class="danger" @click="del(card.rows, ri, '这一行')">删除行</button>
+              </div>
+              <button type="button" class="add-btn" @click="addPclRow(card)">+ 添加一行</button>
+
+              <div v-for="(btn, bi) in card.buttons" :key="'btn' + bi" class="pcl-row">
+                <div class="field-grid">
+                  <label><span>按钮文字</span><input v-model="btn.label" /></label>
+                  <label><span>链接（http/https）</span><input v-model="btn.url" placeholder="https://..." /></label>
+                </div>
+                <button type="button" class="danger" @click="del(card.buttons, bi, '这个按钮')">删除按钮</button>
+              </div>
+              <button type="button" class="add-btn" @click="addPclButton(card)">+ 添加按钮</button>
+            </div>
+
+            <button type="button" class="add-btn" :disabled="busy" @click="addPclCard">+ 添加卡片</button>
+          </details>
+
+          <details class="sub-block">
+            <summary>自定义变量（{{ pcl.vars.length }}）</summary>
+            <p class="hint">在卡片文字里用 <code>{%变量名%}</code> 引用；同名变量会覆盖内置的日期/新闻变量。</p>
+            <div v-for="(item, vi) in pcl.vars" :key="'var' + vi" class="row-3">
+              <label><span>变量名（字母/数字/_）</span><input v-model="item.key" placeholder="qq_group" /></label>
+              <label><span>值</span><input v-model="item.value" /></label>
+              <button type="button" class="danger" @click="del(pcl.vars, vi, '这个变量')">删除</button>
+            </div>
+            <button type="button" class="add-btn" @click="addPclVar">+ 添加变量</button>
+          </details>
+
           <button type="button" class="save-btn" :disabled="busy" @click="save('pcl.json')">保存「PCL 主页」</button>
         </section>
 
@@ -526,6 +608,9 @@ function enterEditor(st: any) {
   ensure('servers.json', !!serversFile && Array.isArray(serversFile.servers), serversData)
   const pclFile = files['pcl.json']
   ensure('pcl.json', !!pclFile && typeof pclFile === 'object' && Array.isArray(pclFile.links), pclData)
+  const pclDataFile = files['pcl.json']
+  if (!Array.isArray(pclDataFile.cards)) pclDataFile.cards = []
+  if (!Array.isArray(pclDataFile.vars)) pclDataFile.vars = []
 
   dataFiles.value = files
   phase.value = 'ready'
@@ -560,6 +645,12 @@ async function logout() {
 }
 
 async function save(file: string) {
+  if (file === 'pcl.json') {
+    pcl.value.cards = (pcl.value.cards || []).filter(
+      (card: any) => String(card.title || '').trim() || card.rows?.length || card.buttons?.length,
+    )
+    pcl.value.vars = (pcl.value.vars || []).filter((item: any) => String(item.key || '').trim())
+  }
   if (file === 'servers.json') {
     const invalid = servers.value.servers.some(
       (server: any) => !String(server.name || '').trim() || !String(server.address || '').trim(),
@@ -794,6 +885,28 @@ function addPclLink() {
   pcl.value.links.push({ label: '', url: '' })
 }
 
+function addPclCard() {
+  pcl.value.cards.push({
+    id: `card-${Date.now().toString(36)}`,
+    title: '',
+    enabled: true,
+    rows: [],
+    buttons: [],
+  })
+}
+
+function addPclRow(card: any) {
+  card.rows.push({ type: 'text', text: '', fontSize: 13 })
+}
+
+function addPclButton(card: any) {
+  card.buttons.push({ label: '', url: '' })
+}
+
+function addPclVar() {
+  pcl.value.vars.push({ key: '', value: '' })
+}
+
 function wallStatusLabel(status: string): string {
   if (status === 'approved') return '已通过'
   if (status === 'hidden') return '已屏蔽'
@@ -934,6 +1047,10 @@ input, textarea, select { width: 100%; box-sizing: border-box; padding: 9px 10px
 .image-card__actions { display: flex; gap: 6px; padding: 0 10px 10px; }
 .image-card__actions button { flex: 1; padding: 5px; border: 1px solid #4a4d55; border-radius: 6px; background: transparent; color: #b9b6a7; cursor: pointer; font-size: 12px; }
 .image-card__actions button.danger { border-color: #a34848; color: #e08585; }
+.pcl-row { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #2a2d34; }
+.pcl-row .field-grid { margin-bottom: 6px; }
+.pcl-row > button.danger { margin-bottom: 6px; }
+.sub-block code { padding: 1px 4px; border-radius: 4px; background: #191c22; color: #d8d5c7; }
 textarea { resize: vertical; }
 .row-3 { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end; margin-bottom: 8px; }
 .item-card { border: 1px solid #2a2d34; border-radius: 10px; padding: 14px; margin-bottom: 14px; background: #14161b; }

@@ -64,11 +64,42 @@ export interface PclLink {
   url: string
 }
 
+export interface PclRow {
+  type: 'text' | 'list_item' | 'hint' | 'divider'
+  text?: string
+  fontSize?: number
+  logo?: string
+  title?: string
+  info?: string
+  url?: string
+  theme?: 'Blue' | 'Red' | 'Yellow' | 'Green'
+}
+
+export interface PclButton {
+  label: string
+  url: string
+}
+
+export interface PclCard {
+  id: string
+  title: string
+  enabled: boolean
+  rows: PclRow[]
+  buttons: PclButton[]
+}
+
+export interface PclVar {
+  key: string
+  value: string
+}
+
 export interface PclConfig {
   title: string
   intro: string
   newsCount: number
   links: PclLink[]
+  cards: PclCard[]
+  vars: PclVar[]
 }
 
 /**

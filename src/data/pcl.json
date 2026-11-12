@@ -6,5 +6,7 @@
     { "label": "访问官网", "url": "https://www.yitmc.cn/" },
     { "label": "加入QQ群", "url": "https://qm.qq.com/q/942717135" },
     { "label": "社团皮肤站", "url": "https://skin.yitmc.cn/" }
-  ]
+  ],
+  "cards": [],
+  "vars": []
 }

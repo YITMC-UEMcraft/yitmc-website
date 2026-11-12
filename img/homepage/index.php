@@ -98,6 +98,8 @@ function loadPclConfig(): array
             ['label' => '加入QQ群', 'url' => 'https://qm.qq.com/q/942717135'],
             ['label' => '社团皮肤站', 'url' => 'https://skin.yitmc.cn/'],
         ],
+        'cards' => [],
+        'vars' => [],
     ];
     $file = pclDataFile('pcl.json');
     if (!is_file($file)) {
@@ -134,6 +136,113 @@ function loadPclConfig(): array
             }
         }
         $out['links'] = $links;
+    }
+
+    if (isset($json['cards']) && is_array($json['cards'])) {
+        $cards = [];
+        foreach ($json['cards'] as $card) {
+            if (!is_array($card)) {
+                continue;
+            }
+            $rows = [];
+            $rawRows = isset($card['rows']) && is_array($card['rows']) ? $card['rows'] : [];
+            foreach ($rawRows as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $type = (string) ($row['type'] ?? 'text');
+                if ($type === 'text') {
+                    $text = trim((string) ($row['text'] ?? ''));
+                    if ($text === '') {
+                        continue;
+                    }
+                    $rows[] = [
+                        'type' => 'text',
+                        'text' => trunc($text, 500),
+                        'fontSize' => max(10, min(24, (int) ($row['fontSize'] ?? 13))),
+                    ];
+                } elseif ($type === 'list_item') {
+                    $title = trim((string) ($row['title'] ?? ''));
+                    if ($title === '') {
+                        continue;
+                    }
+                    $url = trim((string) ($row['url'] ?? ''));
+                    $rows[] = [
+                        'type' => 'list_item',
+                        'logo' => trunc(trim((string) ($row['logo'] ?? '')), 200),
+                        'title' => trunc($title, 60),
+                        'info' => trunc(trim((string) ($row['info'] ?? '')), 100),
+                        'url' => preg_match('#^https?://#i', $url) ? trunc($url, 500) : '',
+                    ];
+                } elseif ($type === 'hint') {
+                    $text = trim((string) ($row['text'] ?? ''));
+                    if ($text === '') {
+                        continue;
+                    }
+                    $theme = (string) ($row['theme'] ?? 'Blue');
+                    if (!in_array($theme, ['Blue', 'Red', 'Yellow', 'Green'], true)) {
+                        $theme = 'Blue';
+                    }
+                    $rows[] = ['type' => 'hint', 'theme' => $theme, 'text' => trunc($text, 200)];
+                } elseif ($type === 'divider') {
+                    $rows[] = ['type' => 'divider', 'text' => trunc(trim((string) ($row['text'] ?? '')), 40)];
+                }
+                if (count($rows) >= 20) {
+                    break;
+                }
+            }
+
+            $buttons = [];
+            $rawButtons = isset($card['buttons']) && is_array($card['buttons']) ? $card['buttons'] : [];
+            foreach ($rawButtons as $button) {
+                if (!is_array($button)) {
+                    continue;
+                }
+                $label = trim((string) ($button['label'] ?? ''));
+                $url = trim((string) ($button['url'] ?? ''));
+                if ($label === '' || !preg_match('#^https?://#i', $url)) {
+                    continue;
+                }
+                $buttons[] = ['label' => trunc($label, 20), 'url' => trunc($url, 500)];
+                if (count($buttons) >= 4) {
+                    break;
+                }
+            }
+
+            $title = trunc(trim((string) ($card['title'] ?? '')), 60);
+            if ($title === '' && !$rows && !$buttons) {
+                continue;
+            }
+            $cards[] = [
+                'id' => trunc(trim((string) ($card['id'] ?? '')), 40),
+                'title' => $title,
+                'enabled' => !array_key_exists('enabled', $card) || !empty($card['enabled']),
+                'rows' => $rows,
+                'buttons' => $buttons,
+            ];
+            if (count($cards) >= 10) {
+                break;
+            }
+        }
+        $out['cards'] = $cards;
+    }
+
+    if (isset($json['vars']) && is_array($json['vars'])) {
+        $vars = [];
+        foreach ($json['vars'] as $var) {
+            if (!is_array($var)) {
+                continue;
+            }
+            $key = trim((string) ($var['key'] ?? ''));
+            if (!preg_match('/^[a-zA-Z0-9_]{1,32}$/', $key)) {
+                continue;
+            }
+            $vars[$key] = trunc(trim((string) ($var['value'] ?? '')), 200);
+            if (count($vars) >= 30) {
+                break;
+            }
+        }
+        $out['vars'] = $vars;
     }
     return $out;
 }
@@ -498,6 +607,98 @@ function trunc(string $s, int $max): string
     return uLen($s) > $max ? uSub($s, 0, $max - 1) . '…' : $s;
 }
 
+/** 替换 PCL 卡片里的 {%key%} 变量 */
+function pclSubst(string $text, array $vars): string
+{
+    return preg_replace_callback('/\{%([a-zA-Z0-9_]+)%\}/', static function ($m) use ($vars) {
+        return array_key_exists($m[1], $vars) ? (string) $vars[$m[1]] : '';
+    }, $text) ?? $text;
+}
+
+/** 方块图标名或完整图片 URL */
+function pclLogo(string $logo): string
+{
+    $logo = trim($logo);
+    if ($logo === '') {
+        return 'pack://application:,,,/images/Blocks/GoldBlock.png';
+    }
+    if (preg_match('#^https?://#i', $logo)) {
+        return $logo;
+    }
+    $name = preg_replace('/[^A-Za-z0-9_]/', '', $logo) ?? '';
+    if ($name === '') {
+        $name = 'GoldBlock';
+    }
+    return 'pack://application:,,,/images/Blocks/' . $name . '.png';
+}
+
+function renderPclCard(array $card, array $vars): string
+{
+    $title = pclSubst((string) ($card['title'] ?? ''), $vars);
+    if (trim($title) === '') {
+        $title = 'YITMC';
+    }
+    $xaml = '    <local:MyCard Title="' . xesc($title) . '" Margin="0,0,0,15" CanSwap="True">' . "\n";
+    $xaml .= '        <StackPanel Margin="25,40,23,15">' . "\n";
+
+    foreach ($card['rows'] as $row) {
+        $type = (string) ($row['type'] ?? '');
+        if ($type === 'text') {
+            $text = trim(pclSubst((string) ($row['text'] ?? ''), $vars));
+            if ($text === '') {
+                continue;
+            }
+            $size = max(10, min(24, (int) ($row['fontSize'] ?? 13)));
+            $xaml .= '            <TextBlock TextWrapping="Wrap" FontSize="' . $size . '" Foreground="{DynamicResource ColorBrush4}" Text="' . xesc($text) . '" />' . "\n";
+        } elseif ($type === 'list_item') {
+            $itemTitle = trim(pclSubst((string) ($row['title'] ?? ''), $vars));
+            if ($itemTitle === '') {
+                continue;
+            }
+            $info = pclSubst((string) ($row['info'] ?? ''), $vars);
+            $url = trim(pclSubst((string) ($row['url'] ?? ''), $vars));
+            $extra = '';
+            if (preg_match('#^https?://#i', $url)) {
+                $extra = ' Type="Clickable" EventType="打开网页" EventData="' . xesc($url) . '"';
+            }
+            $xaml .= '            <local:MyListItem Margin="-5,2,-5,2" Logo="' . xesc(pclLogo((string) ($row['logo'] ?? ''))) . '" Title="' . xesc($itemTitle) . '" Info="' . xesc($info) . '"' . $extra . ' />' . "\n";
+        } elseif ($type === 'hint') {
+            $text = trim(pclSubst((string) ($row['text'] ?? ''), $vars));
+            if ($text === '') {
+                continue;
+            }
+            $theme = (string) ($row['theme'] ?? 'Blue');
+            if (!in_array($theme, ['Blue', 'Red', 'Yellow', 'Green'], true)) {
+                $theme = 'Blue';
+            }
+            $xaml .= '            <local:MyHint Margin="0,6,0,0" Theme="' . $theme . '" Text="' . xesc($text) . '" />' . "\n";
+        } elseif ($type === 'divider') {
+            $text = trim(pclSubst((string) ($row['text'] ?? ''), $vars));
+            if ($text === '') {
+                $text = '────────────';
+            }
+            $xaml .= '            <TextBlock Margin="0,6,0,0" FontSize="10" HorizontalAlignment="Center" Foreground="{DynamicResource ColorBrush4}" Text="' . xesc($text) . '" />' . "\n";
+        }
+    }
+
+    if (!empty($card['buttons'])) {
+        $xaml .= '            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">' . "\n";
+        foreach ($card['buttons'] as $button) {
+            $label = trim(pclSubst((string) ($button['label'] ?? ''), $vars));
+            $url = trim(pclSubst((string) ($button['url'] ?? ''), $vars));
+            if ($label === '' || !preg_match('#^https?://#i', $url)) {
+                continue;
+            }
+            $xaml .= '                <local:MyButton Text="' . xesc($label) . '" Padding="13,7,13,8" Margin="0,0,10,0" EventType="打开网页" EventData="' . xesc($url) . '" />' . "\n";
+        }
+        $xaml .= '            </StackPanel>' . "\n";
+    }
+
+    $xaml .= '        </StackPanel>' . "\n";
+    $xaml .= '    </local:MyCard>' . "\n";
+    return $xaml;
+}
+
 function serverCard(array $cfg, array $st): string
 {
     $online = $st['online'];
@@ -554,9 +755,33 @@ if (is_file($newsFile)) {
     }
 }
 
-$xaml .= '    <local:MyCard Title="' . xesc($PCL['title']) . '" Margin="0,0,0,15" CanSwap="True">' . "\n";
+// 自定义卡片可用变量
+$pclVars = [
+    'year' => date('Y'),
+    'month' => date('m'),
+    'day' => date('d'),
+    'hour' => date('H'),
+    'minute' => date('i'),
+    'date' => date('Y-m-d'),
+    'time' => date('H:i'),
+    'weekday' => ['日', '一', '二', '三', '四', '五', '六'][(int) date('w')],
+];
+foreach ($latestNews as $index => $item) {
+    $n = $index + 1;
+    if ($n > 5) {
+        break;
+    }
+    $pclVars['news_' . $n . '_title'] = trunc((string) ($item['title'] ?? ''), 60);
+    $pclVars['news_' . $n . '_date'] = (string) ($item['date'] ?? '');
+    $pclVars['news_' . $n . '_url'] = 'https://www.yitmc.cn/news/' . rawurlencode((string) ($item['id'] ?? ''));
+}
+foreach ($PCL['vars'] as $key => $value) {
+    $pclVars[$key] = (string) $value;
+}
+
+$xaml .= '    <local:MyCard Title="' . xesc(pclSubst($PCL['title'], $pclVars)) . '" Margin="0,0,0,15" CanSwap="True">' . "\n";
 $xaml .= '        <StackPanel Margin="25,40,23,15">' . "\n";
-$xaml .= '            <TextBlock TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource ColorBrush4}" Text="' . xesc($PCL['intro']) . '" />' . "\n";
+$xaml .= '            <TextBlock TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource ColorBrush4}" Text="' . xesc(pclSubst($PCL['intro'], $pclVars)) . '" />' . "\n";
 foreach ($latestNews as $item) {
     $title = trunc((string) ($item['title'] ?? ''), 40);
     $date = (string) ($item['date'] ?? '');
@@ -565,13 +790,26 @@ foreach ($latestNews as $item) {
 if (!empty($PCL['links'])) {
     $xaml .= '            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">' . "\n";
     foreach ($PCL['links'] as $link) {
-        $xaml .= '                <local:MyButton Text="' . xesc($link['label']) . '" Padding="13,7,13,8" Margin="0,0,10,0" EventType="打开网页" EventData="' . xesc($link['url']) . '" />' . "\n";
+        $label = trim(pclSubst($link['label'], $pclVars));
+        $url = trim(pclSubst($link['url'], $pclVars));
+        if ($label === '' || !preg_match('#^https?://#i', $url)) {
+            continue;
+        }
+        $xaml .= '                <local:MyButton Text="' . xesc($label) . '" Padding="13,7,13,8" Margin="0,0,10,0" EventType="打开网页" EventData="' . xesc($url) . '" />' . "\n";
     }
     $xaml .= '            </StackPanel>' . "\n";
 }
 $xaml .= '            <TextBlock Margin="0,8,0,0" FontSize="11" Foreground="{DynamicResource ColorBrush4}" Text="状态更新于 ' . xesc(date('Y-m-d H:i:s')) . '" />' . "\n";
 $xaml .= '        </StackPanel>' . "\n";
 $xaml .= '    </local:MyCard>' . "\n";
+
+// 后台配置的自定义卡片（提示、规则、公告等）
+foreach ($PCL['cards'] as $card) {
+    if (empty($card['enabled'])) {
+        continue;
+    }
+    $xaml .= renderPclCard($card, $pclVars);
+}
 
 foreach ($SERVERS as $i => $cfg) {
     $xaml .= serverCard($cfg, $statuses[$i]);
