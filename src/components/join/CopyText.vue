@@ -47,12 +47,14 @@ async function copy() {
 
 .copy-text__value {
   flex: 1;
+  min-width: 0;
   font-family: var(--font-body);
   font-size: var(--text-lg);
   color: var(--color-text);
   background: var(--color-bg);
   padding: var(--space-sm) var(--space-md);
   border: var(--border-width-sm) solid var(--color-surface-light);
+  overflow-wrap: anywhere;
 }
 
 .copy-text__btn {
@@ -79,5 +81,21 @@ async function copy() {
   background: var(--color-accent);
   color: #fff !important;
   border-color: var(--color-accent-dim);
+}
+
+@media (max-width: 520px) {
+  .copy-text__row {
+    flex-wrap: wrap;
+  }
+
+  .copy-text__value {
+    flex: 1 1 100%;
+    font-size: var(--text-base);
+  }
+
+  .copy-text__btn {
+    width: 100%;
+    justify-content: center;
+  }
 }
 </style>

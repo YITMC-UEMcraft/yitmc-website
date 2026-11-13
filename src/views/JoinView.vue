@@ -40,6 +40,15 @@
         </div>
 
         <div class="join-page__section">
+          <h2><AppIcon name="gamepad" :size="18" /> PCL2 自定义主页</h2>
+          <p class="join-page__desc">
+            在 PCL2 中打开「设置 → 个性化 → 自定义主页」，启用后填入下面的地址，
+            就能在启动器里直接看到 YITMC 的服务器状态、社团资讯和快捷入口。
+          </p>
+          <CopyText label="PCL2 主页地址" text="https://www.yitmc.cn/homepage/" />
+        </div>
+
+        <div class="join-page__section">
           <h2><AppIcon name="smartphone" :size="18" /> 关注我们</h2>
           <div class="join-page__social-grid">
             <SocialBlock icon="music" platform="抖音" :handle="config.douyinHandle" :href="config.douyinUrl" />
