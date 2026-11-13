@@ -27,7 +27,9 @@
 
       <RouterLink v-if="internalLink" :to="event.link" class="event-card__cta">查看详情 →</RouterLink>
       <a v-else-if="event.link" :href="event.link" target="_blank" rel="noopener" class="event-card__cta">查看详情 →</a>
-      <span v-else class="event-card__cta is-muted">活动已结束</span>
+      <span v-else class="event-card__cta" :class="{ 'is-muted': status.className === 'past' }">
+        {{ emptyCtaLabel }}
+      </span>
     </div>
   </article>
 </template>
@@ -42,6 +44,11 @@ const props = defineProps<{ event: ClubEvent }>()
 
 const status = computed(() => eventStatusMeta(props.event.status))
 const internalLink = computed(() => props.event.link.startsWith('/'))
+const emptyCtaLabel = computed(() => {
+  if (props.event.status === 'ongoing') return '活动进行中'
+  if (props.event.status === 'upcoming') return '敬请期待'
+  return '活动已结束'
+})
 </script>
 
 <style scoped>
