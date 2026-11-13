@@ -18,6 +18,7 @@
           {{ adminName }} · {{ adminRole === 'super_admin' ? '超级管理员' : '管理员' }}（皮肤站）
         </span>
         <span class="admin__bar-tip">保存后刷新网站即可看到最新内容</span>
+        <RouterLink to="/" class="admin__back">← 返回官网首页</RouterLink>
         <button type="button" @click="logout">退出登录</button>
       </header>
 
