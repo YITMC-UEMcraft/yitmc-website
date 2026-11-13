@@ -1,3 +1,6 @@
+import { newsData, type NewsItem } from '@/data'
+import { dateSortKey } from './date'
+
 export interface NewsTypeMeta {
   label: string
   icon: string
@@ -12,4 +15,12 @@ const NEWS_TYPE_META: Record<string, NewsTypeMeta> = {
 
 export function newsTypeMeta(type: string): NewsTypeMeta {
   return NEWS_TYPE_META[type] || { label: '动态', icon: 'clipboard' }
+}
+
+/** 动态严格按日期由新到旧；同日期按 ID 由大到小。 */
+export function sortedNews(items: NewsItem[] = newsData.news): NewsItem[] {
+  return [...items].sort((a, b) => {
+    const diff = dateSortKey(b.date) - dateSortKey(a.date)
+    return diff !== 0 ? diff : Number(b.id) - Number(a.id)
+  })
 }

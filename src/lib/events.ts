@@ -1,4 +1,5 @@
 import { eventsData, type ClubEvent } from '@/data'
+import { dateSortKey } from './date'
 
 export interface EventStatusMeta {
   label: string
@@ -16,26 +17,26 @@ export function eventStatusMeta(status: string): EventStatusMeta {
 }
 
 function byStartAsc(a: ClubEvent, b: ClubEvent): number {
-  return String(a.dateStart).localeCompare(String(b.dateStart))
+  return dateSortKey(a.dateStart) - dateSortKey(b.dateStart) || a.id - b.id
 }
 
 function byStartDesc(a: ClubEvent, b: ClubEvent): number {
-  return String(b.dateStart).localeCompare(String(a.dateStart))
+  return dateSortKey(b.dateStart) - dateSortKey(a.dateStart) || b.id - a.id
 }
 
-/** 即将开始 / 进行中：精选优先，日期由近到远 */
+/** 即将开始 / 进行中：严格按开始时间由近到远 */
 export function upcomingEvents(limit?: number): ClubEvent[] {
   const list = eventsData.events
     .filter((e) => e.status === 'upcoming' || e.status === 'ongoing')
-    .sort((a, b) => Number(b.featured) - Number(a.featured) || byStartAsc(a, b))
+    .sort(byStartAsc)
   return typeof limit === 'number' ? list.slice(0, limit) : list
 }
 
-/** 往期：精选优先，日期由近到远 */
+/** 往期：严格按开始时间由新到旧 */
 export function pastEvents(limit?: number): ClubEvent[] {
   const list = eventsData.events
     .filter((e) => e.status === 'past')
-    .sort((a, b) => Number(b.featured) - Number(a.featured) || byStartDesc(a, b))
+    .sort(byStartDesc)
   return typeof limit === 'number' ? list.slice(0, limit) : list
 }
 

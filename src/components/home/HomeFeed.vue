@@ -66,11 +66,10 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { newsData } from '@/data'
 import { featuredEvents, eventStatusMeta, upcomingEvents } from '@/lib/events'
-import { newsTypeMeta } from '@/lib/news'
+import { newsTypeMeta, sortedNews } from '@/lib/news'
 
-const latestNews = computed(() => newsData.news.slice(0, 3))
+const latestNews = computed(() => sortedNews().slice(0, 3))
 const events = computed(() => featuredEvents(3))
 const hasUpcoming = computed(() => upcomingEvents().length > 0)
 </script>

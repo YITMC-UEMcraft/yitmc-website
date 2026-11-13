@@ -29,11 +29,10 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import AppIcon from '@/components/icons/AppIcon.vue'
-import { newsData } from '@/data'
-import { newsTypeMeta } from '@/lib/news'
+import { newsTypeMeta, sortedNews } from '@/lib/news'
 import { fetchNewsViews, formatViews } from '@/lib/views'
 
-const newsItems = newsData.news
+const newsItems = sortedNews()
 const views = ref<Record<string, number>>({})
 
 onMounted(async () => {

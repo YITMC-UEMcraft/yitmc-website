@@ -55,16 +55,16 @@ import AppHeader from '@/components/layout/AppHeader.vue'
 import AppFooter from '@/components/layout/AppFooter.vue'
 import BlockDivider from '@/components/ui/BlockDivider.vue'
 import AppIcon from '@/components/icons/AppIcon.vue'
-import { newsData } from '@/data'
-import { newsTypeMeta } from '@/lib/news'
+import { newsTypeMeta, sortedNews } from '@/lib/news'
 import { setSeo, SITE_URL } from '@/lib/seo'
 import { formatViews, recordNewsView } from '@/lib/views'
 
 const route = useRoute()
 const router = useRouter()
 
+const newsItems = computed(() => sortedNews())
 const item = computed(() =>
-  newsData.news.find((n) => String(n.id) === String(route.params.id)),
+  newsItems.value.find((n) => String(n.id) === String(route.params.id)),
 )
 const typeMeta = computed(() => newsTypeMeta(item.value?.type || ''))
 const viewCount = ref<number | null>(null)
@@ -77,14 +77,14 @@ watch(item, (news) => {
     .catch(() => { /* 浏览量失败不影响阅读 */ })
 }, { immediate: true })
 const index = computed(() =>
-  item.value ? newsData.news.findIndex((n) => n.id === item.value!.id) : -1,
+  item.value ? newsItems.value.findIndex((n) => n.id === item.value!.id) : -1,
 )
 const newer = computed(() =>
-  index.value > 0 ? newsData.news[index.value - 1] : null,
+  index.value > 0 ? newsItems.value[index.value - 1] : null,
 )
 const older = computed(() =>
-  index.value >= 0 && index.value < newsData.news.length - 1
-    ? newsData.news[index.value + 1]
+  index.value >= 0 && index.value < newsItems.value.length - 1
+    ? newsItems.value[index.value + 1]
     : null,
 )
 
