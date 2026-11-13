@@ -1,5 +1,5 @@
 <template>
-  <div class="admin">
+  <div class="admin bg-grid">
     <p v-if="phase === 'checking'" class="admin__center">正在检查登录状态…</p>
 
     <form v-else-if="phase === 'login'" class="admin__login" @submit.prevent="login">
@@ -256,31 +256,57 @@
         </section>
 
         <section v-show="tab === 'servers'">
-          <h2>服务器</h2>
-          <p class="hint">保存后首页服务器状态、PCL 主页和状态代理会共用这份列表。port 为 0 表示自动 SRV 解析；fallbackPort 为 SRV 失败时的兜底端口。</p>
-          <div v-for="(s, i) in servers.servers" :key="'srv' + i" class="item-card">
+          <div class="admin-section-head">
+            <div>
+              <h2>服务器列表</h2>
+              <p class="hint">保存后首页服务器状态、PCL 主页和状态代理会共用这份列表。port 为 0 表示自动 SRV 解析；fallbackPort 为 SRV 失败时的兜底端口。</p>
+            </div>
+            <button type="button" class="add-btn" :disabled="busy" @click="addServer">+ 添加服务器</button>
+          </div>
+
+          <div v-if="servers.servers.length" class="server-list">
+            <button
+              v-for="(s, i) in servers.servers"
+              :key="s.id || 'srv' + i"
+              type="button"
+              class="server-list__item"
+              :class="{ 'is-active': selectedServerIndex === i }"
+              @click="selectedServerIndex = i"
+            >
+              <span class="server-list__name">{{ s.name || '(未命名服务器)' }}</span>
+              <span class="server-list__meta">
+                {{ s.edition === 'bedrock' ? '基岩版' : 'Java 版' }} ·
+                {{ s.displayAddress || s.address || '未填写地址' }}{{ s.port ? ':' + s.port : '' }}
+              </span>
+              <span class="server-list__badge">{{ s.note || '无说明' }}</span>
+            </button>
+          </div>
+          <p v-else class="server-empty">还没有服务器，点击右上角「添加服务器」创建第一台。</p>
+
+          <div v-if="currentServer" class="item-card server-editor">
             <header>
-              <b>{{ s.name || '(未命名服务器)' }}</b>
-              <button type="button" class="danger" @click="del(servers.servers, i, '这台服务器')">删除</button>
+              <b>编辑：{{ currentServer.name || '(未命名服务器)' }}</b>
+              <button type="button" class="danger" @click="removeServer(selectedServerIndex)">删除这台服务器</button>
             </header>
             <div class="field-grid">
-              <label><span>名称</span><input v-model="s.name" /></label>
-              <label><span>说明</span><input v-model="s.note" placeholder="如：社团主服" /></label>
-              <label><span>真实地址</span><input v-model="s.address" placeholder="srvl.yitmc.cn" /></label>
-              <label><span>展示地址（可留空）</span><input v-model="s.displayAddress" placeholder="留空则同真实地址" /></label>
-              <label><span>端口（0 = SRV）</span><input v-model.number="s.port" type="number" min="0" max="65535" /></label>
-              <label><span>兜底端口</span><input v-model.number="s.fallbackPort" type="number" min="0" max="65535" /></label>
+              <label><span>名称</span><input v-model="currentServer.name" /></label>
+              <label><span>说明</span><input v-model="currentServer.note" placeholder="如：社团主服" /></label>
+              <label><span>真实地址</span><input v-model="currentServer.address" placeholder="srvl.yitmc.cn" /></label>
+              <label><span>展示地址（可留空）</span><input v-model="currentServer.displayAddress" placeholder="留空则同真实地址" /></label>
+              <label><span>端口（0 = SRV）</span><input v-model.number="currentServer.port" type="number" min="0" max="65535" /></label>
+              <label><span>兜底端口</span><input v-model.number="currentServer.fallbackPort" type="number" min="0" max="65535" /></label>
               <label><span>版本类型</span>
-                <select v-model="s.edition">
+                <select v-model="currentServer.edition">
                   <option value="java">Java 版</option>
                   <option value="bedrock">基岩版</option>
                 </select>
               </label>
-              <label><span>编号 ID</span><input v-model="s.id" /></label>
+              <label><span>编号 ID</span><input v-model="currentServer.id" /></label>
+            </div>
+            <div class="server-editor__actions">
+              <button type="button" class="save-btn" :disabled="busy" @click="save('servers.json')">保存服务器列表</button>
             </div>
           </div>
-          <button type="button" class="add-btn" :disabled="busy" @click="addServer">+ 添加服务器</button>
-          <button type="button" class="save-btn" :disabled="busy" @click="save('servers.json')">保存「服务器」</button>
           <p class="hint">提示：状态探测目前只支持 Java 版；基岩版仅用于展示。</p>
         </section>
 
@@ -498,7 +524,7 @@ const tabs = [
   { key: 'events', label: '活动中心' },
   { key: 'docs', label: '指南文档' },
   { key: 'members', label: '成员风采' },
-  { key: 'servers', label: '服务器' },
+  { key: 'servers', label: '服务器列表' },
   { key: 'pcl', label: 'PCL 主页' },
   { key: 'stats', label: '首页数据' },
   { key: 'wall', label: '留言墙' },
@@ -550,6 +576,15 @@ const stats = computed(() => dataFiles.value['stats.json'] ?? { stats: [] })
 const events = computed(() => dataFiles.value['events.json'] ?? { events: [] })
 const docs = computed(() => dataFiles.value['docs.json'] ?? { docs: [] })
 const servers = computed(() => dataFiles.value['servers.json'] ?? { servers: [] })
+const selectedServerIndex = ref(0)
+const currentServer = computed(() => servers.value.servers[selectedServerIndex.value] || null)
+watch(
+  () => servers.value.servers.length,
+  (length) => {
+    if (length === 0) selectedServerIndex.value = 0
+    else if (selectedServerIndex.value >= length) selectedServerIndex.value = length - 1
+  },
+)
 const pcl = computed<PclConfig>(() => dataFiles.value['pcl.json'] ?? pclData)
 const wall = reactive({
   messages: [] as any[],
@@ -908,6 +943,13 @@ function addServer() {
     fallbackPort: 25565,
     edition: 'java',
   })
+  selectedServerIndex.value = servers.value.servers.length - 1
+}
+
+function removeServer(index: number) {
+  if (!confirm('确定要删除这台服务器吗？删除后点下方“保存”才会生效。')) return
+  servers.value.servers.splice(index, 1)
+  selectedServerIndex.value = Math.max(0, Math.min(index, servers.value.servers.length - 1))
 }
 
 function addPclLink() {
@@ -1102,5 +1144,227 @@ button.danger { background: transparent; border: 1px solid #a34848; color: #e085
 .data-note { color: #6e6c60; font-size: 12px; border-top: 1px solid #22252b; padding-top: 12px; }
 .admin__msg { padding: 10px 14px; border-radius: 8px; background: #17301f; color: #7fd8ab; }
 .admin__msg.is-error { background: #331717; color: #e79b9b; }
+
+/* ===== 与官网主题统一 ===== */
+.admin {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+}
+.admin__center { color: var(--color-text-muted); }
+.admin__login {
+  padding: var(--space-xl);
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-brown);
+  box-shadow: var(--shadow-pixel);
+}
+.admin__login h1 { font-family: var(--font-display); color: var(--color-text); }
+.admin__tip { color: var(--color-text-muted); }
+.admin__login input,
+input, textarea, select {
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: var(--border-width-sm) solid var(--color-surface-light);
+  border-radius: 0;
+}
+input:focus, textarea:focus, select:focus { outline: none; border-color: var(--color-accent); }
+.admin__login button,
+.save-btn {
+  background: var(--color-accent);
+  border: var(--border-width-sm) solid var(--color-accent-dim);
+  color: #10200a;
+  border-radius: 0;
+  font-family: var(--font-display);
+}
+.admin__login button:hover,
+.save-btn:hover { background: var(--color-accent-hover); }
+.admin__back { color: var(--color-text-muted); }
+.admin__back:hover { color: var(--color-accent); }
+.admin__bar { border-bottom-color: var(--color-surface-light); }
+.admin__bar strong { font-family: var(--font-display); font-size: var(--text-lg); }
+.admin__bar-tip { color: var(--color-text-muted); }
+.admin__identity {
+  border-color: var(--color-accent-dim);
+  color: var(--color-accent);
+  border-radius: 0;
+}
+.admin__bar button {
+  border-color: var(--color-surface-light);
+  color: var(--color-text);
+  border-radius: 0;
+}
+.admin__bar button:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.admin__tabs button,
+.wall-tabs button {
+  background: var(--color-surface);
+  border: var(--border-width-sm) solid var(--color-surface-light);
+  color: var(--color-text-muted);
+  border-radius: 0;
+  font-family: var(--font-display);
+}
+.admin__tabs button.is-active,
+.wall-tabs button.is-active {
+  background: var(--color-accent);
+  border-color: var(--color-accent-dim);
+  color: #10200a;
+}
+.admin__main h2 { color: var(--color-text); font-family: var(--font-display); }
+.field-grid label, .wide, .checkbox-field { color: var(--color-text-muted); }
+.doc-preview {
+  background: var(--color-bg);
+  border-color: var(--color-surface-light);
+  color: var(--color-text);
+  border-radius: 0;
+}
+.doc-preview :deep(h1), .doc-preview :deep(h2), .doc-preview :deep(h3) { color: var(--color-text); }
+.doc-preview :deep(code) { background: var(--color-surface); border-color: var(--color-surface-light); color: var(--color-text); }
+.doc-preview :deep(pre) { background: var(--color-surface); border-color: var(--color-surface-light); }
+.doc-preview :deep(th), .doc-preview :deep(td) { border-color: var(--color-surface-light); }
+.overview-card, .item-card, .settings-card, .image-card {
+  background: var(--color-surface);
+  border: var(--border-width-sm) solid var(--color-surface-light);
+  border-radius: 0;
+  box-shadow: var(--shadow-pixel-sm);
+}
+.overview-card b { color: var(--color-accent); }
+.overview-card span { color: var(--color-text-muted); }
+.overview-card.is-alert { border-color: var(--color-danger); }
+.overview-card.is-alert b { color: var(--color-danger); }
+.wall-status {
+  border-color: var(--color-surface-light);
+  color: var(--color-text-muted);
+  border-radius: 0;
+}
+.wall-status--approved { color: var(--color-accent); border-color: var(--color-accent-dim); }
+.wall-status--pending { color: var(--color-gold); border-color: var(--color-gold-dim); }
+.wall-status--hidden { color: var(--color-danger); border-color: var(--color-danger); }
+.wall-content { color: var(--color-text); }
+.wall-meta { color: var(--color-text-muted); }
+.wall-account { color: var(--color-accent); }
+.wall-actions button,
+.wall-pager button {
+  border-color: var(--color-surface-light);
+  color: var(--color-text);
+  border-radius: 0;
+}
+.wall-actions button:hover,
+.wall-pager button:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.wall-actions button.danger { border-color: var(--color-danger); color: var(--color-danger); }
+.image-card img { background: var(--color-bg); }
+.image-card__info { color: var(--color-text-muted); }
+.image-card__info b { color: var(--color-text); }
+.image-card__actions button {
+  border-color: var(--color-surface-light);
+  color: var(--color-text);
+  border-radius: 0;
+}
+.image-card__actions button:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.image-card__actions button.danger { border-color: var(--color-danger); color: var(--color-danger); }
+.sub-block {
+  background: var(--color-surface);
+  border-color: var(--color-brown);
+  border-radius: 0;
+}
+.sub-block summary { color: var(--color-text); }
+.sub-block code { background: var(--color-bg); color: var(--color-text); }
+.image-field { color: var(--color-text-muted); }
+.image-field img { border-color: var(--color-surface-light); background: var(--color-bg); }
+.add-btn {
+  background: var(--color-surface);
+  border: var(--border-width-sm) dashed var(--color-brown);
+  color: var(--color-text-muted);
+  border-radius: 0;
+}
+.add-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+button.danger {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  border-radius: 0;
+}
+button.danger:hover { background: rgba(192, 57, 43, 0.12); }
+.settings-card h3 { color: var(--color-text); }
+.hint, .data-note { color: var(--color-text-muted); }
+.admin__msg {
+  background: rgba(92, 154, 59, 0.15);
+  border: var(--border-width-sm) solid var(--color-accent-dim);
+  color: var(--color-accent);
+  border-radius: 0;
+}
+.admin__msg.is-error {
+  background: rgba(192, 57, 43, 0.15);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+/* ===== 服务器列表编辑 ===== */
+.admin-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-md);
+}
+.admin-section-head h2 { margin-top: 0; }
+.admin-section-head .add-btn { margin: 0; }
+.server-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+  margin-bottom: var(--space-md);
+}
+.server-list__item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 14px;
+  text-align: left;
+  background: var(--color-surface);
+  border: var(--border-width-sm) solid var(--color-surface-light);
+  color: var(--color-text);
+  border-radius: 0;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+.server-list__item:hover { border-color: var(--color-accent-dim); }
+.server-list__item.is-active {
+  border-color: var(--color-accent);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+}
+.server-list__name {
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  color: var(--color-text);
+}
+.server-list__meta {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+.server-list__badge {
+  align-self: flex-start;
+  margin-top: 3px;
+  padding: 1px 8px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-surface-light);
+}
+.server-empty {
+  padding: var(--space-lg);
+  text-align: center;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  border: var(--border-width-sm) dashed var(--color-surface-light);
+}
+.server-editor { margin-top: 0; }
+.server-editor__actions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-xs);
+}
+.server-editor__actions .save-btn { margin: 0; }
+.pcl-row { border-top-color: var(--color-surface-light); }
+.data-note { border-top-color: var(--color-surface-light); }
+
 @media (max-width: 640px) { .row-3 { grid-template-columns: 1fr 1fr; } .admin { padding: 14px; } }
 </style>
