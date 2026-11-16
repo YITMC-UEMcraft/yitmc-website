@@ -152,9 +152,11 @@ watchEffect(() => {
 }
 
 .news-detail__cover {
+  display: block;
   width: 100%;
-  max-height: 420px;
-  object-fit: cover;
+  height: auto;
+  max-height: none;
+  object-fit: contain;
   border: var(--border-width-sm) solid var(--color-surface-light);
   margin-bottom: var(--space-lg);
 }
