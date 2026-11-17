@@ -42,6 +42,7 @@ const navLinks = [
   { to: '/docs', label: '指南' },
   { to: '/wall', label: '留言墙' },
   { to: '/members', label: '成员' },
+  { to: '/sponsor', label: '赞助' },
   { to: '/about', label: '关于' },
   { to: '/join', label: '加入' },
 ]
