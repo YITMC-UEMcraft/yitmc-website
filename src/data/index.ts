@@ -6,6 +6,7 @@ import statsJson from './stats.json'
 import eventsJson from './events.json'
 import docsJson from './docs.json'
 import serversJson from './servers.json'
+import sponsorsJson from './sponsors.json'
 import pclJson from './pcl.json'
 
 /** 社团活动 */
@@ -42,6 +43,17 @@ export interface ClubDoc {
   content: string
   order: number
   updatedAt: string
+}
+
+/** 赞助鸣谢 */
+export interface Sponsor {
+  id: number
+  name: string
+  type: string
+  message: string
+  link: string
+  date: string
+  visible: boolean
 }
 
 /** 我的世界服务器状态配置 */
@@ -116,6 +128,7 @@ export const statsData: typeof statsJson = statsJson
 export const eventsData: { events: ClubEvent[] } = eventsJson as { events: ClubEvent[] }
 export const docsData: { docs: ClubDoc[] } = docsJson as { docs: ClubDoc[] }
 export const serversData: { servers: McServerConfig[] } = serversJson as { servers: McServerConfig[] }
+export const sponsorsData: { sponsors: Sponsor[] } = sponsorsJson as { sponsors: Sponsor[] }
 export const pclData: PclConfig = pclJson as PclConfig
 
 const FILES = [
@@ -127,6 +140,7 @@ const FILES = [
   { name: 'events.json', data: eventsData },
   { name: 'docs.json', data: docsData },
   { name: 'servers.json', data: serversData },
+  { name: 'sponsors.json', data: sponsorsData },
   { name: 'pcl.json', data: pclData as unknown as Record<string, unknown> },
 ] as const
 

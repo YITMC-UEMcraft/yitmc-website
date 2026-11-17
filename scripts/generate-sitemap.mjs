@@ -51,6 +51,7 @@ const staticPages = [
   ['/wall', 'weekly', '0.5'],
   ['/members', 'monthly', '0.6'],
   ['/open', 'monthly', '0.7'],
+  ['/sponsor', 'monthly', '0.6'],
   ['/about', 'monthly', '0.7'],
   ['/join', 'monthly', '0.7'],
 ]

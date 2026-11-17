@@ -115,6 +115,15 @@ const router = createRouter({
       },
     },
     {
+      path: '/sponsor',
+      name: 'sponsor',
+      component: () => import('@/views/SponsorView.vue'),
+      meta: {
+        title: '赞助我们 - YITMC',
+        description: '支持 YITMC 的服务器、活动与创作项目，感谢每一位赞助者。',
+      },
+    },
+    {
       path: '/about',
       name: 'about',
       component: () => import('@/views/AboutView.vue'),

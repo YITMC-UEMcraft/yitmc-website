@@ -62,7 +62,7 @@ header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 header('Cache-Control: no-store');
 
-define('ALLOWED_FILES', ['site-config.json', 'works.json', 'news.json', 'members.json', 'stats.json', 'events.json', 'docs.json', 'servers.json', 'pcl.json']);
+define('ALLOWED_FILES', ['site-config.json', 'works.json', 'news.json', 'members.json', 'stats.json', 'events.json', 'docs.json', 'servers.json', 'sponsors.json', 'pcl.json']);
 define('ALLOWED_EXT', ['jpg', 'jpeg', 'png', 'webp', 'gif']);
 define('MAX_UPLOAD_BYTES', 20 * 1024 * 1024);
 define('WALL_MAX_NAME', 20);

@@ -255,6 +255,39 @@
           <button type="button" class="save-btn" :disabled="busy" @click="save('members.json')">保存「成员风采」</button>
         </section>
 
+        <section v-show="tab === 'sponsors'">
+          <h2>赞助鸣谢</h2>
+          <p class="hint">
+            这里维护 /sponsor 页面公开展示的赞助者名单。关闭「公开显示」后仅后台可见；
+            赞助者要求匿名时请关闭公开。
+          </p>
+          <div v-for="(s, i) in sponsors.sponsors" :key="'sponsor' + i" class="item-card">
+            <header>
+              <b>{{ s.name || '(未命名赞助者)' }}</b>
+              <button type="button" class="danger" @click="del(sponsors.sponsors, i, '这条赞助记录')">删除</button>
+            </header>
+            <div class="field-grid">
+              <label><span>名称 / 昵称</span><input v-model="s.name" /></label>
+              <label><span>类型</span>
+                <select v-model="s.type">
+                  <option value="个人">个人</option>
+                  <option value="社团">社团</option>
+                  <option value="企业">企业</option>
+                  <option value="组织">组织</option>
+                </select>
+              </label>
+              <label><span>日期</span><input v-model="s.date" placeholder="2026-11" /></label>
+              <label><span>链接（可留空）</span><input v-model="s.link" placeholder="https://" /></label>
+              <label><span>编号 ID</span><input v-model.number="s.id" type="number" min="1" /></label>
+              <label class="checkbox-field"><span>公开显示</span><input v-model="s.visible" type="checkbox" /></label>
+            </div>
+            <label class="wide"><span>留言 / 鸣谢语</span><textarea v-model="s.message" rows="2"></textarea></label>
+          </div>
+          <p v-if="!sponsors.sponsors.length" class="hint">还没有赞助记录，点击下方按钮添加第一位赞助者。</p>
+          <button type="button" class="add-btn" :disabled="busy" @click="addSponsor">+ 添加赞助者</button>
+          <button type="button" class="save-btn" :disabled="busy" @click="save('sponsors.json')">保存「赞助鸣谢」</button>
+        </section>
+
         <section v-show="tab === 'servers'">
           <div class="admin-section-head">
             <div>
@@ -510,7 +543,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
   siteConfig, worksData, newsData, membersData, statsData, eventsData, docsData,
-  serversData, pclData, type PclConfig,
+  serversData, sponsorsData, pclData, type PclConfig,
 } from '@/data'
 import { renderMarkdown } from '@/lib/markdown'
 
@@ -524,6 +557,7 @@ const tabs = [
   { key: 'events', label: '活动中心' },
   { key: 'docs', label: '指南文档' },
   { key: 'members', label: '成员风采' },
+  { key: 'sponsors', label: '赞助鸣谢' },
   { key: 'servers', label: '服务器列表' },
   { key: 'pcl', label: 'PCL 主页' },
   { key: 'stats', label: '首页数据' },
@@ -575,6 +609,7 @@ const members = computed(() => dataFiles.value['members.json'] ?? { leadership: 
 const stats = computed(() => dataFiles.value['stats.json'] ?? { stats: [] })
 const events = computed(() => dataFiles.value['events.json'] ?? { events: [] })
 const docs = computed(() => dataFiles.value['docs.json'] ?? { docs: [] })
+const sponsors = computed(() => dataFiles.value['sponsors.json'] ?? { sponsors: [] })
 const servers = computed(() => dataFiles.value['servers.json'] ?? { servers: [] })
 const selectedServerIndex = ref(0)
 const currentServer = computed(() => servers.value.servers[selectedServerIndex.value] || null)
@@ -656,6 +691,8 @@ function enterEditor(st: any) {
   ensure('docs.json', !!docsFile && Array.isArray(docsFile.docs), docsData)
   const serversFile = files['servers.json']
   ensure('servers.json', !!serversFile && Array.isArray(serversFile.servers), serversData)
+  const sponsorsFile = files['sponsors.json']
+  ensure('sponsors.json', !!sponsorsFile && Array.isArray(sponsorsFile.sponsors), sponsorsData)
   const pclFile = files['pcl.json']
   ensure('pcl.json', !!pclFile && typeof pclFile === 'object' && Array.isArray(pclFile.links), pclData)
   const pclDataFile = files['pcl.json']
@@ -713,6 +750,23 @@ async function save(file: string) {
   if (file === 'members.json') {
     members.value.leadership.forEach((member: any) => {
       if (!member.profileId) delete member.profileId
+    })
+  }
+  if (file === 'sponsors.json') {
+    const invalid = sponsors.value.sponsors.some(
+      (sponsor: any) => !String(sponsor.name || '').trim(),
+    )
+    if (invalid) {
+      flash('赞助者名称不能为空', true)
+      return
+    }
+    sponsors.value.sponsors.forEach((sponsor: any) => {
+      sponsor.id = Number(sponsor.id) || 0
+      sponsor.visible = sponsor.visible !== false
+      sponsor.type = String(sponsor.type || '个人').trim()
+      sponsor.message = String(sponsor.message || '').trim()
+      sponsor.link = String(sponsor.link || '').trim()
+      sponsor.date = String(sponsor.date || '').trim()
     })
   }
   if (file === 'servers.json') {
@@ -930,6 +984,19 @@ function uploadToLibrary() {
     }
   }
   input.click()
+}
+
+function addSponsor() {
+  const now = new Date()
+  sponsors.value.sponsors.push({
+    id: nextId(sponsors.value.sponsors),
+    name: '',
+    type: '个人',
+    message: '',
+    link: '',
+    date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`,
+    visible: true,
+  })
 }
 
 function addServer() {
