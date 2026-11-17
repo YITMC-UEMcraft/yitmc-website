@@ -1037,15 +1037,15 @@ if ($getAction === 'oidc_callback') {
 $action = isset($_POST['action']) ? (string) $_POST['action'] : '';
 if ($action === '') {
     $raw = file_get_contents('php://input');
-    if ($raw !== false && $raw !== '') {
-        $body = json_decode($raw, true);
-        if (is_array($body) && isset($body['action'])) {
-            $action = (string) $body['action'];
-            unset($body['action']);
-            $GLOBALS['jsonBody'] = $body;
-        } else {
-            $GLOBALS['jsonBody'] = [];
-        }
+    $body = $raw !== false && $raw !== '' ? json_decode($raw, true) : null;
+    if ($getAction === 'afdian_webhook') {
+        // 爱发电 Webhook 用查询参数指定 action，请求体是订单 JSON。
+        $GLOBALS['jsonBody'] = is_array($body) ? $body : $_POST;
+        $action = 'afdian_webhook';
+    } elseif (is_array($body) && isset($body['action'])) {
+        $action = (string) $body['action'];
+        unset($body['action']);
+        $GLOBALS['jsonBody'] = $body;
     } else {
         $GLOBALS['jsonBody'] = [];
     }
@@ -1061,7 +1061,7 @@ function afdianConfigPath(): string
 
 function afdianConfig(): array
 {
-    $defaults = ['userId' => '', 'token' => '', 'pageUrl' => ''];
+    $defaults = ['userId' => '', 'token' => '', 'pageUrl' => '', 'webhookKey' => ''];
     $path = afdianConfigPath();
     if (!is_file($path)) {
         return $defaults;
@@ -1074,6 +1074,7 @@ function afdianConfig(): array
         'userId' => trim((string) ($json['userId'] ?? '')),
         'token' => trim((string) ($json['token'] ?? '')),
         'pageUrl' => trim((string) ($json['pageUrl'] ?? '')),
+        'webhookKey' => trim((string) ($json['webhookKey'] ?? '')),
     ];
 }
 
@@ -1279,6 +1280,91 @@ function upsertAfdianSponsor(int $userId, string $nickname, bool $anonymous, str
         $data['sponsors'][] = $entry;
         return $entry;
     });
+}
+
+function sponsorOrderView(array $sponsor, string $date): array
+{
+    return [
+        'id' => (int) ($sponsor['id'] ?? 0),
+        'name' => (string) ($sponsor['name'] ?? ''),
+        'type' => (string) ($sponsor['type'] ?? '爱发电'),
+        'message' => (string) ($sponsor['message'] ?? ''),
+        'link' => (string) ($sponsor['link'] ?? ''),
+        'date' => (string) ($sponsor['date'] ?? $date),
+        'visible' => !empty($sponsor['visible']),
+    ];
+}
+
+function recordAfdianSponsorship(array $order, int $userId, string $nickname, bool $anonymous, string $channel): array
+{
+    $outTradeNo = (string) ($order['out_trade_no'] ?? '');
+    $date = date('Y-m');
+    $result = withSponsorOrders(function (array &$data) use (
+        $outTradeNo,
+        $userId,
+        $nickname,
+        $anonymous,
+        $date,
+        $order,
+        $channel
+    ) {
+        foreach ($data['orders'] as $record) {
+            if (!is_array($record) || (string) ($record['outTradeNo'] ?? '') !== $outTradeNo) {
+                continue;
+            }
+            if ((int) ($record['userId'] ?? 0) !== $userId) {
+                return ['conflict' => true];
+            }
+            return [
+                'already' => true,
+                'sponsor' => upsertAfdianSponsor($userId, $nickname, $anonymous, $date),
+            ];
+        }
+
+        $sponsor = upsertAfdianSponsor($userId, $nickname, $anonymous, $date);
+        $data['orders'][] = [
+            'outTradeNo' => $outTradeNo,
+            'userId' => $userId,
+            'nickname' => $nickname,
+            'afdianUserId' => (string) ($order['user_id'] ?? ''),
+            'amount' => number_format((float) ($order['total_amount'] ?? 0), 2, '.', ''),
+            'title' => limitText(cleanUserText((string) ($order['title'] ?? '')), 120),
+            'remark' => limitText(cleanUserText((string) ($order['remark'] ?? '')), 200),
+            'claimedAt' => time(),
+            'sponsorId' => (int) ($sponsor['id'] ?? 0),
+            'channel' => $channel,
+        ];
+        return ['already' => false, 'sponsor' => $sponsor];
+    });
+    $result['date'] = $date;
+    return $result;
+}
+
+/**
+ * 赞助登记码：YITMC-<用户ID>-<HMAC 前 8 位>。
+ * 用户在爱发电订单留言中填写后，webhook 可自动把订单绑定到官网账号。
+ */
+function afdianSponsorCode(array $cfg, int $userId): string
+{
+    if (!afdianConfigured($cfg) || $userId <= 0) {
+        return '';
+    }
+    $digest = substr(hash_hmac('sha256', 'yitmc-sponsor:' . $userId, (string) $cfg['token']), 0, 8);
+    return 'YITMC-' . $userId . '-' . $digest;
+}
+
+function afdianUserIdFromRemark(array $cfg, string $remark): int
+{
+    if (!afdianConfigured($cfg)) {
+        return 0;
+    }
+    if (!preg_match('/YITMC[-_ ]?(\d{1,10})[-_ ]?([a-f0-9]{8})/i', $remark, $match)) {
+        return 0;
+    }
+    $userId = (int) $match[1];
+    $expected = afdianSponsorCode($cfg, $userId);
+    $actual = 'YITMC-' . $match[1] . '-' . strtolower($match[2]);
+    return $expected !== '' && hash_equals(strtolower($expected), $actual) ? $userId : 0;
 }
 
 switch ($action) {
@@ -1516,6 +1602,89 @@ switch ($action) {
             'pageUrl' => afdianPublicPageUrl($cfg),
         ]);
 
+    case 'sponsor_code':
+        requireSameOrigin();
+        $currentUser = currentOidcUser();
+        if (!$currentUser) {
+            fail('请先登录官网账号', 401, 'LOGIN_REQUIRED');
+        }
+        $cfg = afdianConfig();
+        if (!afdianConfigured($cfg)) {
+            fail('赞助自动登记尚未配置，请联系管理员', 503, 'SPONSOR_NOT_CONFIGURED');
+        }
+        respond([
+            'ok' => true,
+            'code' => afdianSponsorCode($cfg, (int) ($currentUser['id'] ?? 0)),
+        ]);
+
+    case 'afdian_webhook':
+        // 爱发电 Webhook：不信任请求内容，始终用 query-order 重新核验。
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+            respond(['ec' => 200, 'em' => 'ignored']);
+        }
+        $cfg = afdianConfig();
+        $webhookKey = trim((string) ($cfg['webhookKey'] ?? ''));
+        $providedKey = isset($_GET['key']) ? (string) $_GET['key'] : '';
+        if ($webhookKey === '' || !hash_equals($webhookKey, $providedKey)) {
+            respond(['ec' => 200, 'em' => 'ignored']);
+        }
+        $payload = is_array($GLOBALS['jsonBody']) ? $GLOBALS['jsonBody'] : [];
+        if (!$payload) {
+            $decoded = json_decode((string) file_get_contents('php://input'), true);
+            if (is_array($decoded)) {
+                $payload = $decoded;
+            }
+        }
+        $hookOrder = $payload['data']['order'] ?? null;
+        $outTradeNo = is_array($hookOrder) ? trim((string) ($hookOrder['out_trade_no'] ?? '')) : '';
+        if ($outTradeNo === '') {
+            respond(['ec' => 200, 'em' => 'ignored']);
+        }
+        // 爱发电后台「发送测试」使用的固定测试订单号
+        if ($outTradeNo === '202106232138371083454010626') {
+            respond(['ec' => 200, 'em' => 'test ok']);
+        }
+        if (!afdianConfigured($cfg)) {
+            respond(['ec' => 200, 'em' => 'ignored']);
+        }
+        $response = afdianRequest('query-order', ['out_trade_no' => $outTradeNo], $cfg);
+        if ((int) ($response['ec'] ?? 0) !== 200) {
+            respond(['ec' => 200, 'em' => 'ignored']);
+        }
+        $list = isset($response['data']['list']) && is_array($response['data']['list'])
+            ? $response['data']['list']
+            : [];
+        $order = null;
+        foreach ($list as $item) {
+            if (is_array($item) && (string) ($item['out_trade_no'] ?? '') === $outTradeNo) {
+                $order = $item;
+                break;
+            }
+        }
+        if (!$order || (int) ($order['status'] ?? 0) !== 2 || (float) ($order['total_amount'] ?? 0) <= 0) {
+            respond(['ec' => 200, 'em' => 'ignored']);
+        }
+        $remark = (string) ($order['remark'] ?? '');
+        $userId = afdianUserIdFromRemark($cfg, $remark);
+        if ($userId <= 0) {
+            respond(['ec' => 200, 'em' => 'ignored']);
+        }
+        $users = readUsers();
+        $user = findUserById($users, $userId);
+        if (!$user) {
+            respond(['ec' => 200, 'em' => 'ignored']);
+        }
+        $nickname = limitText(trim((string) ($user['nickname'] ?? 'YITMC 成员')), 20);
+        if ($nickname === '') {
+            $nickname = 'YITMC 成员';
+        }
+        $anonymous = strpos($remark, '匿名') !== false;
+        $result = recordAfdianSponsorship($order, $userId, $nickname, $anonymous, 'webhook');
+        if (!empty($result['conflict'])) {
+            respond(['ec' => 200, 'em' => 'ignored']);
+        }
+        respond(['ec' => 200, 'em' => '成功']);
+
     case 'sponsor_claim':
         requireSameOrigin();
         $currentUser = currentOidcUser();
@@ -1580,45 +1749,8 @@ switch ($action) {
             $nickname = 'YITMC 成员';
         }
         $anonymous = !empty($input['anonymous']);
-        $date = date('Y-m');
 
-        $result = withSponsorOrders(function (array &$data) use (
-            $outTradeNo,
-            $userId,
-            $nickname,
-            $anonymous,
-            $date,
-            $order,
-            $now
-        ) {
-            foreach ($data['orders'] as $record) {
-                if (!is_array($record) || (string) ($record['outTradeNo'] ?? '') !== $outTradeNo) {
-                    continue;
-                }
-                if ((int) ($record['userId'] ?? 0) !== $userId) {
-                    return ['conflict' => true];
-                }
-                return [
-                    'already' => true,
-                    'sponsor' => upsertAfdianSponsor($userId, $nickname, $anonymous, $date),
-                ];
-            }
-
-            $sponsor = upsertAfdianSponsor($userId, $nickname, $anonymous, $date);
-            $data['orders'][] = [
-                'outTradeNo' => $outTradeNo,
-                'userId' => $userId,
-                'nickname' => $nickname,
-                'afdianUserId' => (string) ($order['user_id'] ?? ''),
-                'amount' => number_format((float) ($order['total_amount'] ?? 0), 2, '.', ''),
-                'title' => limitText(cleanUserText((string) ($order['title'] ?? '')), 120),
-                'remark' => limitText(cleanUserText((string) ($order['remark'] ?? '')), 200),
-                'claimedAt' => $now,
-                'sponsorId' => (int) ($sponsor['id'] ?? 0),
-            ];
-            return ['already' => false, 'sponsor' => $sponsor];
-        });
-
+        $result = recordAfdianSponsorship($order, $userId, $nickname, $anonymous, 'claim');
         if (!empty($result['conflict'])) {
             fail('该订单已被其他账号登记', 409, 'ORDER_CLAIMED');
         }
@@ -1626,26 +1758,22 @@ switch ($action) {
         respond([
             'ok' => true,
             'already' => !empty($result['already']),
-            'sponsor' => [
-                'id' => (int) ($sponsor['id'] ?? 0),
-                'name' => (string) ($sponsor['name'] ?? ''),
-                'type' => (string) ($sponsor['type'] ?? '爱发电'),
-                'message' => (string) ($sponsor['message'] ?? ''),
-                'link' => (string) ($sponsor['link'] ?? ''),
-                'date' => (string) ($sponsor['date'] ?? $date),
-                'visible' => !empty($sponsor['visible']),
-            ],
+            'sponsor' => sponsorOrderView($sponsor, (string) ($result['date'] ?? date('Y-m'))),
         ]);
 
     case 'sponsor_config_get':
         requireAuth();
         $cfg = afdianConfig();
+        $webhookKey = trim((string) ($cfg['webhookKey'] ?? ''));
         respond([
             'ok' => true,
             'configured' => afdianConfigured($cfg),
             'userId' => (string) ($cfg['userId'] ?? ''),
             'pageUrl' => afdianPublicPageUrl($cfg),
             'tokenSet' => trim((string) ($cfg['token'] ?? '')) !== '',
+            'webhookUrl' => $webhookKey !== ''
+                ? 'https://www.yitmc.cn/admin-api.php?action=afdian_webhook&key=' . rawurlencode($webhookKey)
+                : '',
         ]);
 
     case 'sponsor_config_save':
@@ -1671,12 +1799,17 @@ switch ($action) {
         if ($token === '' || strlen($token) > 300) {
             fail('请填写有效的 API Token', 400);
         }
+        $webhookKey = trim((string) ($existing['webhookKey'] ?? ''));
+        if ($webhookKey === '') {
+            $webhookKey = bin2hex(random_bytes(16));
+        }
         $path = afdianConfigPath();
         $tmp = $path . '.tmp';
         $encoded = json_encode([
             'userId' => $userId,
             'token' => $token,
             'pageUrl' => $pageUrl,
+            'webhookKey' => $webhookKey,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
         if (
             $encoded === false

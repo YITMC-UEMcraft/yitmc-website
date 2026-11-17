@@ -110,12 +110,13 @@ YITMC/
 
 ### 爱发电自动赞助
 
-`/sponsor` 支持登录用户提交爱发电订单号自动登记：
+`/sponsor` 支持登录用户提交爱发电订单号自动登记，也支持 Webhook 全自动登记：
 
 1. 后台「赞助鸣谢」→「爱发电 API 配置」填写开发者页面的 `user_id`、`API Token` 与赞助页链接。
-2. 用户支付后登录官网，在赞助页填写爱发电订单号。
-3. 后端调用爱发电 `query-order` 核验订单状态与金额，成功后把赞助记到当前官网账号，并自动写入 `sponsors.json`。
-4. API Token 保存在 webroot 外 `/var/www/yitmc-admin/afdian.json`（`www-data` 640）；订单核验记录保存在 `/var/www/yitmc-admin/sponsor-orders.json`（640），不会提交到仓库。
+2. 把后台显示的 Webhook 地址（带 `key` 参数）填到爱发电开发者页面的「Webhook URL」，并点「发送测试」确认返回成功。
+3. 用户登录后可在赞助页看到自己的「赞助登记码」；在爱发电付款时把登记码填到订单留言里，Webhook 会自动把订单绑定到官网账号。忘记填也可以在赞助页提交订单号手动核验。
+4. 后端始终调用爱发电 `query-order` 重新核验订单状态与金额，不信任 Webhook 请求体；成功后写入 `sponsors.json`。
+5. API Token 与 Webhook key 保存在 webroot 外 `/var/www/yitmc-admin/afdian.json`（`www-data` 640）；订单核验记录保存在 `/var/www/yitmc-admin/sponsor-orders.json`（640），均不会提交到仓库。
 
 ## 本地开发
 

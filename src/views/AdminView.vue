@@ -268,6 +268,8 @@
               填写爱发电开发者页面的 user_id 与 API Token 后，登录用户可在赞助页提交订单号自动登记。
               Token 保存在 webroot 外，不会回显；留空表示保持原值。赞助页链接用于前台的「前往爱发电赞助」按钮。
             </p>
+            <p class="hint">Webhook 地址（填到爱发电开发者页面的 Webhook URL）：</p>
+            <code class="webhook-url">{{ afdian.webhookUrl || '保存配置后生成' }}</code>
             <div class="field-grid">
               <label><span>爱发电 user_id</span><input v-model="afdian.userId" autocomplete="off" /></label>
               <label><span>API Token</span>
@@ -648,6 +650,7 @@ const afdian = reactive({
   userId: '',
   token: '',
   pageUrl: '',
+  webhookUrl: '',
 })
 const sponsorOrders = ref<any[]>([])
 const sponsorOrdersLoading = ref(false)
@@ -987,6 +990,7 @@ async function loadAfdianConfig() {
     if (res.ok) {
       afdian.userId = res.userId || ''
       afdian.pageUrl = res.pageUrl || ''
+      afdian.webhookUrl = res.webhookUrl || ''
       afdian.tokenSet = Boolean(res.tokenSet)
       afdian.configured = Boolean(res.configured)
       afdian.loaded = true
@@ -1538,6 +1542,17 @@ button.danger:hover { background: rgba(192, 57, 43, 0.12); }
 }
 .server-editor__actions .save-btn { margin: 0; }
 .sponsor-orders { margin-top: var(--space-lg); }
+.webhook-url {
+  display: block;
+  margin: var(--space-xs) 0 var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  font-size: 12px;
+  color: var(--color-gold);
+  background: var(--color-bg);
+  border: var(--border-width-sm) solid var(--color-surface-light);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
 .sponsor-orders__title {
   margin: 0 0 var(--space-sm);
   font-family: var(--font-display);

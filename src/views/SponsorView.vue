@@ -63,6 +63,17 @@
             <p v-if="!afdianStatus.loaded" class="sponsor-claim__hint">正在检查自动登记状态…</p>
             <template v-else-if="afdianStatus.configured">
               <template v-if="user">
+                <div v-if="sponsorCode" class="sponsor-code">
+                  <div class="sponsor-code__head">
+                    <span>你的赞助登记码</span>
+                    <button type="button" @click="copyCode">{{ codeCopied ? '已复制' : '复制' }}</button>
+                  </div>
+                  <code>{{ sponsorCode }}</code>
+                  <p>
+                    在爱发电付款时，把这段码填到订单「留言」里，系统会自动登记并展示你的鸣谢；
+                    如需匿名，请在留言里加上「匿名」。忘记填也可以继续用下面的订单号登记。
+                  </p>
+                </div>
                 <p class="sponsor-claim__hint">
                   填写爱发电订单号，系统会自动核验并把这次赞助记到你的官网账号上。
                 </p>
@@ -161,7 +172,7 @@ import { siteConfig, sponsorsData } from '@/data'
 import { dateSortKey } from '@/lib/date'
 import { useAuth } from '@/composables/useAuth'
 import { loginHref } from '@/lib/auth'
-import { claimSponsor, fetchSponsorStatus, type SponsorPublic } from '@/lib/sponsor'
+import { claimSponsor, fetchSponsorCode, fetchSponsorStatus, type SponsorPublic } from '@/lib/sponsor'
 
 const config = siteConfig
 const { user, refreshAuth } = useAuth()
@@ -178,6 +189,8 @@ const claimForm = reactive({
   error: '',
   success: '',
 })
+const sponsorCode = ref('')
+const codeCopied = ref(false)
 
 const uses = [
   {
@@ -258,9 +271,27 @@ async function submitClaim() {
   }
 }
 
-onMounted(() => {
-  refreshAuth()
-  loadAfdianStatus()
+async function copyCode() {
+  if (!sponsorCode.value) return
+  try {
+    await navigator.clipboard.writeText(sponsorCode.value)
+    codeCopied.value = true
+    setTimeout(() => { codeCopied.value = false }, 2000)
+  } catch {
+    // 复制失败时保留文本供手动选择
+  }
+}
+
+onMounted(async () => {
+  await refreshAuth()
+  await loadAfdianStatus()
+  if (user.value && afdianStatus.configured) {
+    try {
+      sponsorCode.value = await fetchSponsorCode()
+    } catch {
+      // 登记码获取失败时仍可手动提交订单号
+    }
+  }
 })
 </script>
 
@@ -455,6 +486,58 @@ onMounted(() => {
 
 .sponsor-claim__hint a {
   color: var(--color-accent);
+}
+
+.sponsor-code {
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  background: var(--color-bg);
+  border: var(--border-width-sm) dashed var(--color-gold-dim);
+}
+
+.sponsor-code__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xs);
+  font-family: var(--font-pixel);
+  font-size: var(--text-xs);
+  color: var(--color-gold);
+}
+
+.sponsor-code__head button {
+  padding: 3px 10px;
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  color: var(--color-text);
+  background: transparent;
+  border: var(--border-width-sm) solid var(--color-gold-dim);
+  cursor: pointer;
+}
+
+.sponsor-code__head button:hover {
+  color: var(--color-gold);
+  border-color: var(--color-gold);
+}
+
+.sponsor-code code {
+  display: block;
+  padding: var(--space-sm) var(--space-md);
+  font-family: var(--font-body);
+  font-size: var(--text-lg);
+  color: var(--color-gold);
+  background: var(--color-surface);
+  border: var(--border-width-sm) solid var(--color-surface-light);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.sponsor-code p {
+  margin-top: var(--space-xs);
+  font-size: var(--text-xs);
+  line-height: 1.7;
+  color: var(--color-text-muted);
 }
 
 .sponsor-claim__form {

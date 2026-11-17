@@ -45,6 +45,11 @@ export async function fetchSponsorStatus(): Promise<SponsorStatus> {
   }
 }
 
+export async function fetchSponsorCode(): Promise<string> {
+  const json = await post({ action: 'sponsor_code' })
+  return String(json.code || '')
+}
+
 export async function claimSponsor(
   outTradeNo: string,
   anonymous: boolean,
