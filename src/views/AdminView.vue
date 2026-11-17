@@ -261,6 +261,31 @@
             这里维护 /sponsor 页面公开展示的赞助者名单。关闭「公开显示」后仅后台可见；
             赞助者要求匿名时请关闭公开。
           </p>
+
+          <details class="sub-block" open>
+            <summary>爱发电 API 配置（自动核验订单）</summary>
+            <p class="hint">
+              填写爱发电开发者页面的 user_id 与 API Token 后，登录用户可在赞助页提交订单号自动登记。
+              Token 保存在 webroot 外，不会回显；留空表示保持原值。赞助页链接用于前台的「前往爱发电赞助」按钮。
+            </p>
+            <div class="field-grid">
+              <label><span>爱发电 user_id</span><input v-model="afdian.userId" autocomplete="off" /></label>
+              <label><span>API Token</span>
+                <input
+                  v-model="afdian.token"
+                  type="password"
+                  autocomplete="new-password"
+                  :placeholder="afdian.tokenSet ? '已配置，留空不修改' : '粘贴 API Token'"
+                />
+              </label>
+              <label><span>赞助页链接</span><input v-model="afdian.pageUrl" placeholder="https://afdian.com/a/..." /></label>
+            </div>
+            <button type="button" class="save-btn" :disabled="afdian.saving" @click="saveAfdianConfig">
+              {{ afdian.saving ? '保存中…' : '保存爱发电配置' }}
+            </button>
+            <p class="hint">{{ afdian.configured ? '已配置，官网可自动核验订单。' : '未配置，前台不会显示自动登记表单。' }}</p>
+          </details>
+
           <div v-for="(s, i) in sponsors.sponsors" :key="'sponsor' + i" class="item-card">
             <header>
               <b>{{ s.name || '(未命名赞助者)' }}</b>
@@ -286,6 +311,22 @@
           <p v-if="!sponsors.sponsors.length" class="hint">还没有赞助记录，点击下方按钮添加第一位赞助者。</p>
           <button type="button" class="add-btn" :disabled="busy" @click="addSponsor">+ 添加赞助者</button>
           <button type="button" class="save-btn" :disabled="busy" @click="save('sponsors.json')">保存「赞助鸣谢」</button>
+
+          <div class="sub-block sponsor-orders">
+            <h3 class="sponsor-orders__title">已自动登记的订单</h3>
+            <p v-if="sponsorOrdersLoading" class="hint">正在加载订单…</p>
+            <p v-else-if="!sponsorOrders.length" class="hint">还没有通过爱发电自动登记的订单。</p>
+            <div v-else>
+              <article v-for="order in sponsorOrders" :key="order.outTradeNo" class="sponsor-order">
+                <div class="sponsor-order__head">
+                  <b>{{ order.nickname || ('用户 #' + order.userId) }}</b>
+                  <span>{{ order.amount }} 元 · {{ formatDate(order.claimedAt) }}</span>
+                </div>
+                <code>{{ order.outTradeNo }}</code>
+                <p v-if="order.title">{{ order.title }}</p>
+              </article>
+            </div>
+          </div>
         </section>
 
         <section v-show="tab === 'servers'">
@@ -599,6 +640,17 @@ const adminVia = ref<'password' | 'oidc'>('password')
 const adminRole = ref('super_admin')
 const adminName = ref('')
 const pw = reactive({ oldPw: '', newPw: '', newPw2: '' })
+const afdian = reactive({
+  loaded: false,
+  saving: false,
+  configured: false,
+  tokenSet: false,
+  userId: '',
+  token: '',
+  pageUrl: '',
+})
+const sponsorOrders = ref<any[]>([])
+const sponsorOrdersLoading = ref(false)
 // eslint-disable-next-line
 const dataFiles = ref<Record<string, any>>({})
 
@@ -929,6 +981,57 @@ async function loadImages() {
   }
 }
 
+async function loadAfdianConfig() {
+  try {
+    const res = await api({ action: 'sponsor_config_get' })
+    if (res.ok) {
+      afdian.userId = res.userId || ''
+      afdian.pageUrl = res.pageUrl || ''
+      afdian.tokenSet = Boolean(res.tokenSet)
+      afdian.configured = Boolean(res.configured)
+      afdian.loaded = true
+    }
+  } catch {
+    // 配置读取失败时保留空表单
+  }
+}
+
+async function saveAfdianConfig() {
+  afdian.saving = true
+  try {
+    const res = await api({
+      action: 'sponsor_config_save',
+      userId: afdian.userId,
+      token: afdian.token,
+      pageUrl: afdian.pageUrl,
+    })
+    if (res.ok) {
+      flash('爱发电配置已保存')
+      afdian.token = ''
+      await loadAfdianConfig()
+    } else {
+      flash(res.error || '保存爱发电配置失败', true)
+    }
+  } catch {
+    flash('保存爱发电配置失败，请稍后重试', true)
+  } finally {
+    afdian.saving = false
+  }
+}
+
+async function loadSponsorOrders() {
+  sponsorOrdersLoading.value = true
+  try {
+    const res = await api({ action: 'sponsor_orders_list' })
+    if (res.ok) sponsorOrders.value = res.orders || []
+    else flash(res.error || '加载赞助订单失败', true)
+  } catch {
+    flash('加载赞助订单失败，请稍后重试', true)
+  } finally {
+    sponsorOrdersLoading.value = false
+  }
+}
+
 async function deleteImage(name: string) {
   if (!confirm('确定删除这张图片吗？仍被内容引用的图片会被拒绝删除。')) return
   busy.value = true
@@ -1120,6 +1223,10 @@ watch(tab, (value) => {
   if (value === 'wall') loadWall(1)
   if (value === 'images') loadImages()
   if (value === 'overview') loadOverview()
+  if (value === 'sponsors') {
+    loadAfdianConfig()
+    loadSponsorOrders()
+  }
 })
 
 onMounted(bootstrap)
@@ -1430,6 +1537,40 @@ button.danger:hover { background: rgba(192, 57, 43, 0.12); }
   margin-top: var(--space-xs);
 }
 .server-editor__actions .save-btn { margin: 0; }
+.sponsor-orders { margin-top: var(--space-lg); }
+.sponsor-orders__title {
+  margin: 0 0 var(--space-sm);
+  font-family: var(--font-display);
+  font-size: 15px;
+  color: var(--color-text);
+}
+.sponsor-order {
+  padding: var(--space-sm) 0;
+  border-bottom: 1px dashed var(--color-surface-light);
+}
+.sponsor-order:last-child { border-bottom: none; }
+.sponsor-order__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  font-size: 13px;
+  color: var(--color-text);
+}
+.sponsor-order__head span { color: var(--color-text-muted); }
+.sponsor-order code {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+.sponsor-order p {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
 .pcl-row { border-top-color: var(--color-surface-light); }
 .data-note { border-top-color: var(--color-surface-light); }
 

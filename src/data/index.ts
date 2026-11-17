@@ -54,6 +54,8 @@ export interface Sponsor {
   link: string
   date: string
   visible: boolean
+  userId?: number
+  source?: string
 }
 
 /** 我的世界服务器状态配置 */

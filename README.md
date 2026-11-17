@@ -108,6 +108,15 @@ YITMC/
 （源码 `img/homepage/index.php`，服务端实时查询服务器状态后生成 PCL2 XAML，缓存 60 秒）。
 在 PCL2 中：设置 → 个性化 → 自定义主页 → 启用并填入上述网址。
 
+### 爱发电自动赞助
+
+`/sponsor` 支持登录用户提交爱发电订单号自动登记：
+
+1. 后台「赞助鸣谢」→「爱发电 API 配置」填写开发者页面的 `user_id`、`API Token` 与赞助页链接。
+2. 用户支付后登录官网，在赞助页填写爱发电订单号。
+3. 后端调用爱发电 `query-order` 核验订单状态与金额，成功后把赞助记到当前官网账号，并自动写入 `sponsors.json`。
+4. API Token 保存在 webroot 外 `/var/www/yitmc-admin/afdian.json`（`www-data` 640）；订单核验记录保存在 `/var/www/yitmc-admin/sponsor-orders.json`（640），不会提交到仓库。
+
 ## 本地开发
 
 ### Windows 快速启动（推荐）

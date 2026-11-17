@@ -1053,6 +1053,234 @@ if ($action === '') {
     $GLOBALS['jsonBody'] = [];
 }
 
+/* ==================== 爱发电赞助 ==================== */
+function afdianConfigPath(): string
+{
+    return dirname(__DIR__) . '/yitmc-admin/afdian.json';
+}
+
+function afdianConfig(): array
+{
+    $defaults = ['userId' => '', 'token' => '', 'pageUrl' => ''];
+    $path = afdianConfigPath();
+    if (!is_file($path)) {
+        return $defaults;
+    }
+    $json = json_decode((string) @file_get_contents($path), true);
+    if (!is_array($json)) {
+        return $defaults;
+    }
+    return [
+        'userId' => trim((string) ($json['userId'] ?? '')),
+        'token' => trim((string) ($json['token'] ?? '')),
+        'pageUrl' => trim((string) ($json['pageUrl'] ?? '')),
+    ];
+}
+
+function afdianConfigured(array $cfg): bool
+{
+    return trim((string) ($cfg['userId'] ?? '')) !== ''
+        && trim((string) ($cfg['token'] ?? '')) !== '';
+}
+
+function isAllowedAfdianPageUrl(string $url): bool
+{
+    if ($url === '') {
+        return true;
+    }
+    $parts = parse_url($url);
+    if (!is_array($parts)) {
+        return false;
+    }
+    $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+    $host = strtolower((string) ($parts['host'] ?? ''));
+    return $scheme === 'https'
+        && in_array($host, ['afdian.com', 'www.afdian.com', 'ifdian.net', 'www.ifdian.net'], true);
+}
+
+function afdianPublicPageUrl(array $cfg): string
+{
+    $url = trim((string) ($cfg['pageUrl'] ?? ''));
+    return isAllowedAfdianPageUrl($url) ? $url : '';
+}
+
+/**
+ * 调用爱发电开放 API。URL 固定为官方域名，不接受用户传入地址。
+ * 文档签名规则：md5(token + "params" + paramsJson + "ts" + ts + "user_id" + userId)
+ */
+function afdianRequest(string $path, array $params, array $cfg): array
+{
+    $paramsJson = json_encode($params, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($paramsJson === false) {
+        return ['ec' => 0, 'em' => '请求参数编码失败', 'data' => []];
+    }
+    $ts = time();
+    $sign = md5(
+        (string) $cfg['token'] . 'params' . $paramsJson . 'ts' . $ts . 'user_id' . (string) $cfg['userId']
+    );
+    $body = http_build_query([
+        'user_id' => (string) $cfg['userId'],
+        'params' => $paramsJson,
+        'ts' => $ts,
+        'sign' => $sign,
+    ]);
+    $context = stream_context_create([
+        'http' => [
+            'method' => 'POST',
+            'header' => "Content-Type: application/x-www-form-urlencoded\r\n"
+                . "User-Agent: YITMC-Sponsor/1.0\r\n",
+            'content' => $body,
+            'timeout' => 10,
+            'ignore_errors' => true,
+        ],
+        'ssl' => [
+            'verify_peer' => true,
+            'verify_peer_name' => true,
+        ],
+    ]);
+    $url = 'https://afdian.com/api/open/' . $path;
+    $parts = parse_url($url);
+    if (
+        !is_array($parts)
+        || strtolower((string) ($parts['scheme'] ?? '')) !== 'https'
+        || strtolower((string) ($parts['host'] ?? '')) !== 'afdian.com'
+    ) {
+        return ['ec' => 0, 'em' => '支付接口地址无效', 'data' => []];
+    }
+    $raw = @file_get_contents($url, false, $context);
+    if ($raw === false) {
+        return ['ec' => 0, 'em' => '网络请求失败，请稍后再试', 'data' => []];
+    }
+    $json = json_decode($raw, true);
+    if (!is_array($json)) {
+        return ['ec' => 0, 'em' => '爱发电返回格式异常', 'data' => []];
+    }
+    return $json;
+}
+
+function sponsorOrdersPath(): string
+{
+    return dirname(__DIR__) . '/yitmc-admin/sponsor-orders.json';
+}
+
+function readSponsorOrders(): array
+{
+    $path = sponsorOrdersPath();
+    if (!is_file($path)) {
+        return ['orders' => []];
+    }
+    $fh = @fopen($path, 'c+');
+    if (!$fh) {
+        return ['orders' => []];
+    }
+    $data = ['orders' => []];
+    if (flock($fh, LOCK_SH)) {
+        $raw = stream_get_contents($fh);
+        $decoded = $raw !== false ? json_decode($raw, true) : null;
+        if (is_array($decoded) && is_array($decoded['orders'] ?? null)) {
+            $data = $decoded;
+        }
+        flock($fh, LOCK_UN);
+    }
+    fclose($fh);
+    return $data;
+}
+
+function withSponsorOrders(callable $callback)
+{
+    $fh = @fopen(sponsorOrdersPath(), 'c+');
+    if (!$fh) {
+        fail('无法打开赞助记录，请稍后再试', 500);
+    }
+    if (!flock($fh, LOCK_EX)) {
+        fclose($fh);
+        fail('赞助记录繁忙，请稍后再试', 503);
+    }
+    $raw = stream_get_contents($fh);
+    $decoded = $raw !== false ? json_decode($raw, true) : null;
+    $data = is_array($decoded) && is_array($decoded['orders'] ?? null) ? $decoded : ['orders' => []];
+    $result = $callback($data);
+    $encoded = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+    if ($encoded !== false) {
+        rewind($fh);
+        ftruncate($fh, 0);
+        fwrite($fh, $encoded . "\n");
+        fflush($fh);
+    }
+    flock($fh, LOCK_UN);
+    fclose($fh);
+    @chmod(sponsorOrdersPath(), 0640);
+    return $result;
+}
+
+function withSponsors(callable $callback)
+{
+    $path = dataDir() . '/sponsors.json';
+    if (!is_dir(dataDir())) {
+        @mkdir(dataDir(), 0755, true);
+    }
+    if (!is_writable(dataDir())) {
+        fail('服务器 data/ 目录不可写，请联系维护者', 500);
+    }
+    $fh = @fopen($path, 'c+');
+    if (!$fh) {
+        fail('无法打开赞助名单，请稍后再试', 500);
+    }
+    if (!flock($fh, LOCK_EX)) {
+        fclose($fh);
+        fail('赞助名单繁忙，请稍后再试', 503);
+    }
+    $raw = stream_get_contents($fh);
+    $decoded = $raw !== false ? json_decode($raw, true) : null;
+    $data = is_array($decoded) && is_array($decoded['sponsors'] ?? null) ? $decoded : ['sponsors' => []];
+    $result = $callback($data);
+    $encoded = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+    if ($encoded !== false) {
+        rewind($fh);
+        ftruncate($fh, 0);
+        fwrite($fh, $encoded . "\n");
+        fflush($fh);
+    }
+    flock($fh, LOCK_UN);
+    fclose($fh);
+    @chmod($path, 0644);
+    return $result;
+}
+
+function upsertAfdianSponsor(int $userId, string $nickname, bool $anonymous, string $date): array
+{
+    return withSponsors(function (array &$data) use ($userId, $nickname, $anonymous, $date) {
+        foreach ($data['sponsors'] as $index => $sponsor) {
+            if (!is_array($sponsor)) {
+                continue;
+            }
+            if ((int) ($sponsor['userId'] ?? 0) === $userId && (string) ($sponsor['source'] ?? '') === 'afdian') {
+                $data['sponsors'][$index]['date'] = $date;
+                return $data['sponsors'][$index];
+            }
+        }
+        $maxId = 0;
+        foreach ($data['sponsors'] as $sponsor) {
+            if (is_array($sponsor)) {
+                $maxId = max($maxId, (int) ($sponsor['id'] ?? 0));
+            }
+        }
+        $entry = [
+            'id' => $maxId + 1,
+            'name' => $anonymous ? '匿名赞助者' : $nickname,
+            'type' => '爱发电',
+            'message' => $anonymous ? '感谢支持 YITMC' : '通过爱发电支持了 YITMC',
+            'link' => '',
+            'date' => $date,
+            'visible' => true,
+            'userId' => $userId,
+            'source' => 'afdian',
+        ];
+        $data['sponsors'][] = $entry;
+        return $entry;
+    });
+}
+
 switch ($action) {
     case 'ping':
         respond(['ok' => true, 'authed' => !empty($_SESSION['yitmc_admin'])]);
@@ -1278,6 +1506,212 @@ switch ($action) {
             return [$a['createdAt'], $a['id']] <=> [$b['createdAt'], $b['id']];
         });
         respond(['ok' => true, 'members' => $members, 'total' => count($members)]);
+
+    /* ===== 爱发电赞助 ===== */
+    case 'sponsor_status':
+        $cfg = afdianConfig();
+        respond([
+            'ok' => true,
+            'configured' => afdianConfigured($cfg),
+            'pageUrl' => afdianPublicPageUrl($cfg),
+        ]);
+
+    case 'sponsor_claim':
+        requireSameOrigin();
+        $currentUser = currentOidcUser();
+        if (!$currentUser) {
+            fail('请先登录官网账号', 401, 'LOGIN_REQUIRED');
+        }
+        $cfg = afdianConfig();
+        if (!afdianConfigured($cfg)) {
+            fail('赞助自动登记尚未配置，请联系管理员', 503, 'SPONSOR_NOT_CONFIGURED');
+        }
+        $input = !empty($GLOBALS['jsonBody']) ? $GLOBALS['jsonBody'] : $_POST;
+        $outTradeNo = trim((string) ($input['outTradeNo'] ?? ''));
+        if (!preg_match('/^[A-Za-z0-9_-]{6,64}$/', $outTradeNo)) {
+            fail('订单号格式不正确', 400);
+        }
+
+        $now = time();
+        $attempts = isset($_SESSION['yitmc_sponsor_attempts']) && is_array($_SESSION['yitmc_sponsor_attempts'])
+            ? $_SESSION['yitmc_sponsor_attempts']
+            : [];
+        $attempts = array_values(array_filter(
+            $attempts,
+            static function ($timestamp) use ($now): bool {
+                return $now - (int) $timestamp < 3600;
+            }
+        ));
+        if (count($attempts) >= 20) {
+            fail('登记尝试过于频繁，请稍后再试', 429);
+        }
+        $attempts[] = $now;
+        $_SESSION['yitmc_sponsor_attempts'] = $attempts;
+
+        $response = afdianRequest('query-order', ['out_trade_no' => $outTradeNo], $cfg);
+        if ((int) ($response['ec'] ?? 0) !== 200) {
+            $message = limitText(cleanUserText((string) ($response['em'] ?? '未知错误')), 120);
+            fail('爱发电接口返回错误：' . $message, 502);
+        }
+        $list = isset($response['data']['list']) && is_array($response['data']['list'])
+            ? $response['data']['list']
+            : [];
+        $order = null;
+        foreach ($list as $item) {
+            if (is_array($item) && (string) ($item['out_trade_no'] ?? '') === $outTradeNo) {
+                $order = $item;
+                break;
+            }
+        }
+        if (!$order) {
+            fail('没有找到这个订单，请确认订单号', 404);
+        }
+        if ((int) ($order['status'] ?? 0) !== 2) {
+            fail('该订单尚未支付成功', 400);
+        }
+        $amount = (float) ($order['total_amount'] ?? 0);
+        if ($amount <= 0) {
+            fail('该订单实付金额为 0，未计入赞助', 400);
+        }
+
+        $userId = (int) ($currentUser['id'] ?? 0);
+        $nickname = limitText(trim((string) ($currentUser['nickname'] ?? 'YITMC 成员')), 20);
+        if ($nickname === '') {
+            $nickname = 'YITMC 成员';
+        }
+        $anonymous = !empty($input['anonymous']);
+        $date = date('Y-m');
+
+        $result = withSponsorOrders(function (array &$data) use (
+            $outTradeNo,
+            $userId,
+            $nickname,
+            $anonymous,
+            $date,
+            $order,
+            $now
+        ) {
+            foreach ($data['orders'] as $record) {
+                if (!is_array($record) || (string) ($record['outTradeNo'] ?? '') !== $outTradeNo) {
+                    continue;
+                }
+                if ((int) ($record['userId'] ?? 0) !== $userId) {
+                    return ['conflict' => true];
+                }
+                return [
+                    'already' => true,
+                    'sponsor' => upsertAfdianSponsor($userId, $nickname, $anonymous, $date),
+                ];
+            }
+
+            $sponsor = upsertAfdianSponsor($userId, $nickname, $anonymous, $date);
+            $data['orders'][] = [
+                'outTradeNo' => $outTradeNo,
+                'userId' => $userId,
+                'nickname' => $nickname,
+                'afdianUserId' => (string) ($order['user_id'] ?? ''),
+                'amount' => number_format((float) ($order['total_amount'] ?? 0), 2, '.', ''),
+                'title' => limitText(cleanUserText((string) ($order['title'] ?? '')), 120),
+                'remark' => limitText(cleanUserText((string) ($order['remark'] ?? '')), 200),
+                'claimedAt' => $now,
+                'sponsorId' => (int) ($sponsor['id'] ?? 0),
+            ];
+            return ['already' => false, 'sponsor' => $sponsor];
+        });
+
+        if (!empty($result['conflict'])) {
+            fail('该订单已被其他账号登记', 409, 'ORDER_CLAIMED');
+        }
+        $sponsor = $result['sponsor'] ?? [];
+        respond([
+            'ok' => true,
+            'already' => !empty($result['already']),
+            'sponsor' => [
+                'id' => (int) ($sponsor['id'] ?? 0),
+                'name' => (string) ($sponsor['name'] ?? ''),
+                'type' => (string) ($sponsor['type'] ?? '爱发电'),
+                'message' => (string) ($sponsor['message'] ?? ''),
+                'link' => (string) ($sponsor['link'] ?? ''),
+                'date' => (string) ($sponsor['date'] ?? $date),
+                'visible' => !empty($sponsor['visible']),
+            ],
+        ]);
+
+    case 'sponsor_config_get':
+        requireAuth();
+        $cfg = afdianConfig();
+        respond([
+            'ok' => true,
+            'configured' => afdianConfigured($cfg),
+            'userId' => (string) ($cfg['userId'] ?? ''),
+            'pageUrl' => afdianPublicPageUrl($cfg),
+            'tokenSet' => trim((string) ($cfg['token'] ?? '')) !== '',
+        ]);
+
+    case 'sponsor_config_save':
+        requireAuth();
+        requireSameOrigin();
+        $input = !empty($GLOBALS['jsonBody']) ? $GLOBALS['jsonBody'] : $_POST;
+        $userId = trim((string) ($input['userId'] ?? ''));
+        $token = trim((string) ($input['token'] ?? ''));
+        $pageUrl = trim((string) ($input['pageUrl'] ?? ''));
+        if ($userId === '' || strlen($userId) > 64) {
+            fail('请填写有效的爱发电 user_id', 400);
+        }
+        if ($pageUrl !== '' && !isAllowedAfdianPageUrl($pageUrl)) {
+            fail('赞助页链接必须是爱发电的 https 地址', 400);
+        }
+        if (strlen($pageUrl) > 500) {
+            fail('赞助页链接过长', 400);
+        }
+        $existing = afdianConfig();
+        if ($token === '') {
+            $token = (string) ($existing['token'] ?? '');
+        }
+        if ($token === '' || strlen($token) > 300) {
+            fail('请填写有效的 API Token', 400);
+        }
+        $path = afdianConfigPath();
+        $tmp = $path . '.tmp';
+        $encoded = json_encode([
+            'userId' => $userId,
+            'token' => $token,
+            'pageUrl' => $pageUrl,
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+        if (
+            $encoded === false
+            || file_put_contents($tmp, $encoded . "\n", LOCK_EX) === false
+            || !rename($tmp, $path)
+        ) {
+            @unlink($tmp);
+            fail('保存爱发电配置失败，请检查目录权限', 500);
+        }
+        @chmod($path, 0640);
+        respond(['ok' => true, 'configured' => true]);
+
+    case 'sponsor_orders_list':
+        requireAuth();
+        $data = readSponsorOrders();
+        $orders = [];
+        foreach ($data['orders'] as $order) {
+            if (!is_array($order)) {
+                continue;
+            }
+            $orders[] = [
+                'outTradeNo' => (string) ($order['outTradeNo'] ?? ''),
+                'userId' => (int) ($order['userId'] ?? 0),
+                'nickname' => (string) ($order['nickname'] ?? ''),
+                'afdianUserId' => (string) ($order['afdianUserId'] ?? ''),
+                'amount' => (string) ($order['amount'] ?? ''),
+                'title' => (string) ($order['title'] ?? ''),
+                'remark' => (string) ($order['remark'] ?? ''),
+                'claimedAt' => (int) ($order['claimedAt'] ?? 0),
+            ];
+        }
+        usort($orders, static function (array $a, array $b): int {
+            return $b['claimedAt'] <=> $a['claimedAt'];
+        });
+        respond(['ok' => true, 'orders' => array_slice($orders, 0, 200)]);
 
     /* ===== 资讯浏览量 ===== */
     case 'news_views':

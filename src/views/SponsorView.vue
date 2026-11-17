@@ -44,13 +44,55 @@
         <section class="sponsor-methods block-inset" data-reveal>
           <h2>如何赞助</h2>
           <p class="sponsor-methods__intro">
-            目前通过社长微信或 QQ 群联系管理团队，确认赞助方式与用途。添加好友或进群时请备注「赞助 YITMC」，
-            方便我们及时回复。
+            可以通过爱发电直接赞助；也可以添加社长微信或进入 QQ 群联系管理团队。添加好友或进群时请备注
+            「赞助 YITMC」，方便我们及时回复。
           </p>
+          <div v-if="afdianStatus.pageUrl" class="sponsor-methods__afdian">
+            <a :href="afdianStatus.pageUrl" target="_blank" rel="noopener" class="sponsor-pay">
+              <AppIcon name="heart" :size="16" /> 前往爱发电赞助 →
+            </a>
+            <span>支付后回到本页，登录并登记订单号即可自动加入鸣谢。</span>
+          </div>
           <div class="sponsor-methods__grid">
             <CopyText label="社长微信" :text="config.presidentWechat" />
             <CopyText label="QQ 群" :text="config.qqGroup" />
           </div>
+
+          <div class="sponsor-claim">
+            <h3>已赞助？登记订单号</h3>
+            <p v-if="!afdianStatus.loaded" class="sponsor-claim__hint">正在检查自动登记状态…</p>
+            <template v-else-if="afdianStatus.configured">
+              <template v-if="user">
+                <p class="sponsor-claim__hint">
+                  填写爱发电订单号，系统会自动核验并把这次赞助记到你的官网账号上。
+                </p>
+                <form class="sponsor-claim__form" @submit.prevent="submitClaim">
+                  <input
+                    v-model="claimForm.outTradeNo"
+                    type="text"
+                    maxlength="64"
+                    placeholder="爱发电订单号"
+                    autocomplete="off"
+                  />
+                  <label class="sponsor-claim__anonymous">
+                    <input v-model="claimForm.anonymous" type="checkbox" /> 匿名展示
+                  </label>
+                  <button type="submit" class="sponsor-claim__submit" :disabled="claimForm.sending">
+                    {{ claimForm.sending ? '核验中…' : '核验并登记' }}
+                  </button>
+                </form>
+                <p v-if="claimForm.error" class="sponsor-claim__msg is-error">{{ claimForm.error }}</p>
+                <p v-else-if="claimForm.success" class="sponsor-claim__msg">{{ claimForm.success }}</p>
+              </template>
+              <p v-else class="sponsor-claim__hint">
+                请先 <a :href="loginHref('/sponsor')">登录官网账号</a>，系统会把赞助记到你的账号上。
+              </p>
+            </template>
+            <p v-else class="sponsor-claim__hint">
+              自动登记暂未开放，可以先通过上面的社长微信或 QQ 群联系管理团队。
+            </p>
+          </div>
+
           <div class="sponsor-methods__actions">
             <PixelButton to="/join" variant="primary">先来认识我们</PixelButton>
             <a :href="config.qqGroupJoinUrl" target="_blank" rel="noopener" class="sponsor-methods__link">
@@ -107,7 +149,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import PixelBackground from '@/components/layout/PixelBackground.vue'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import AppFooter from '@/components/layout/AppFooter.vue'
@@ -117,8 +159,25 @@ import AppIcon from '@/components/icons/AppIcon.vue'
 import CopyText from '@/components/join/CopyText.vue'
 import { siteConfig, sponsorsData } from '@/data'
 import { dateSortKey } from '@/lib/date'
+import { useAuth } from '@/composables/useAuth'
+import { loginHref } from '@/lib/auth'
+import { claimSponsor, fetchSponsorStatus, type SponsorPublic } from '@/lib/sponsor'
 
 const config = siteConfig
+const { user, refreshAuth } = useAuth()
+const sponsorList = ref<SponsorPublic[]>([...sponsorsData.sponsors])
+const afdianStatus = reactive({
+  loaded: false,
+  configured: false,
+  pageUrl: '',
+})
+const claimForm = reactive({
+  outTradeNo: '',
+  anonymous: false,
+  sending: false,
+  error: '',
+  success: '',
+})
 
 const uses = [
   {
@@ -139,7 +198,7 @@ const uses = [
 ]
 
 const visibleSponsors = computed(() =>
-  [...sponsorsData.sponsors]
+  [...sponsorList.value]
     .filter((sponsor) => sponsor.visible !== false && String(sponsor.name || '').trim() !== '')
     .sort((a, b) => dateSortKey(b.date) - dateSortKey(a.date) || b.id - a.id),
 )
@@ -148,6 +207,61 @@ function safeLink(value: string): string {
   const link = String(value || '').trim()
   return /^https?:\/\//i.test(link) ? link : ''
 }
+
+function upsertSponsor(sponsor: SponsorPublic) {
+  if (!sponsor || !sponsor.id) return
+  const index = sponsorList.value.findIndex(
+    (item) =>
+      item.id === sponsor.id
+      || (item.source === 'afdian' && sponsor.source === 'afdian' && item.userId === sponsor.userId),
+  )
+  if (index >= 0) sponsorList.value[index] = sponsor
+  else sponsorList.value.push(sponsor)
+}
+
+async function loadAfdianStatus() {
+  try {
+    const status = await fetchSponsorStatus()
+    afdianStatus.configured = status.configured
+    afdianStatus.pageUrl = status.pageUrl
+  } catch {
+    // 接口未配置或不可用时保持关闭自动登记
+  } finally {
+    afdianStatus.loaded = true
+  }
+}
+
+async function submitClaim() {
+  claimForm.error = ''
+  claimForm.success = ''
+  if (!user.value) {
+    claimForm.error = '请先登录官网账号'
+    return
+  }
+  const outTradeNo = claimForm.outTradeNo.trim()
+  if (!/^[A-Za-z0-9_-]{6,64}$/.test(outTradeNo)) {
+    claimForm.error = '请填写正确的爱发电订单号'
+    return
+  }
+  claimForm.sending = true
+  try {
+    const result = await claimSponsor(outTradeNo, claimForm.anonymous)
+    upsertSponsor(result.sponsor)
+    claimForm.outTradeNo = ''
+    claimForm.success = result.already
+      ? '这个订单已经登记过了，感谢你的支持！'
+      : '登记成功，感谢你的支持！'
+  } catch (err) {
+    claimForm.error = err instanceof Error ? err.message : '登记失败，请稍后再试'
+  } finally {
+    claimForm.sending = false
+  }
+}
+
+onMounted(() => {
+  refreshAuth()
+  loadAfdianStatus()
+})
 </script>
 
 <style scoped>
@@ -284,6 +398,125 @@ function safeLink(value: string): string {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-md);
   margin-top: var(--space-lg);
+}
+
+.sponsor-methods__afdian {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: var(--border-width-sm) solid var(--color-surface-light);
+}
+
+.sponsor-methods__afdian > span {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.sponsor-pay {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: var(--space-sm) var(--space-lg);
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  color: #2b2000 !important;
+  background: var(--color-gold);
+  border: var(--border-width-sm) solid var(--color-gold-dim);
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.sponsor-pay:hover {
+  background: var(--color-gold);
+  color: #2b2000 !important;
+  filter: brightness(1.08);
+}
+
+.sponsor-claim {
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: var(--border-width-sm) dashed var(--color-surface-light);
+}
+
+.sponsor-claim h3 {
+  margin-bottom: var(--space-xs);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  color: var(--color-text);
+}
+
+.sponsor-claim__hint {
+  font-size: var(--text-sm);
+  line-height: 1.7;
+  color: var(--color-text-muted);
+}
+
+.sponsor-claim__hint a {
+  color: var(--color-accent);
+}
+
+.sponsor-claim__form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+
+.sponsor-claim__form input[type='text'] {
+  flex: 1 1 280px;
+  min-width: 0;
+  padding: var(--space-sm) var(--space-md);
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: var(--border-width-sm) solid var(--color-surface-light);
+}
+
+.sponsor-claim__form input[type='text']:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.sponsor-claim__anonymous {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.sponsor-claim__anonymous input {
+  width: auto;
+}
+
+.sponsor-claim__submit {
+  padding: var(--space-sm) var(--space-lg);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  color: #10200a;
+  background: var(--color-accent);
+  border: var(--border-width-sm) solid var(--color-accent-dim);
+  cursor: pointer;
+}
+
+.sponsor-claim__submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.sponsor-claim__msg {
+  margin-top: var(--space-sm);
+  font-size: var(--text-sm);
+  color: var(--color-accent);
+}
+
+.sponsor-claim__msg.is-error {
+  color: var(--color-danger);
 }
 
 .sponsor-methods__actions {
