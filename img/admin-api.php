@@ -1367,6 +1367,39 @@ function afdianUserIdFromRemark(array $cfg, string $remark): int
     return $expected !== '' && hash_equals(strtolower($expected), $actual) ? $userId : 0;
 }
 
+function afdianSyncPath(): string
+{
+    return dirname(__DIR__) . '/yitmc-admin/afdian-sync.json';
+}
+
+function afdianSyncDue(int $ttl = 120): bool
+{
+    $path = afdianSyncPath();
+    $fh = @fopen($path, 'c+');
+    if (!$fh) {
+        return false;
+    }
+    if (!flock($fh, LOCK_EX)) {
+        fclose($fh);
+        return false;
+    }
+    $raw = stream_get_contents($fh);
+    $data = $raw !== false ? json_decode($raw, true) : null;
+    $last = is_array($data) ? (int) ($data['lastSync'] ?? 0) : 0;
+    $now = time();
+    $due = $now - $last >= $ttl;
+    if ($due) {
+        rewind($fh);
+        ftruncate($fh, 0);
+        fwrite($fh, json_encode(['lastSync' => $now], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n");
+        fflush($fh);
+    }
+    flock($fh, LOCK_UN);
+    fclose($fh);
+    @chmod($path, 0640);
+    return $due;
+}
+
 switch ($action) {
     case 'ping':
         respond(['ok' => true, 'authed' => !empty($_SESSION['yitmc_admin'])]);
@@ -1600,6 +1633,54 @@ switch ($action) {
             'ok' => true,
             'configured' => afdianConfigured($cfg),
             'pageUrl' => afdianPublicPageUrl($cfg),
+        ]);
+
+    case 'sponsor_sync':
+        // Webhook 不可用时的兜底：拉取最近订单，按订单留言里的登记码自动匹配。
+        $cfg = afdianConfig();
+        if (!afdianConfigured($cfg) || !afdianSyncDue(120)) {
+            respond(['ok' => true, 'skipped' => true, 'synced' => 0, 'sponsors' => []]);
+        }
+        $response = afdianRequest('query-order', ['page' => 1, 'per_page' => 50], $cfg);
+        if ((int) ($response['ec'] ?? 0) !== 200) {
+            respond(['ok' => true, 'skipped' => true, 'synced' => 0, 'sponsors' => []]);
+        }
+        $list = isset($response['data']['list']) && is_array($response['data']['list'])
+            ? $response['data']['list']
+            : [];
+        $users = readUsers();
+        $sponsors = [];
+        foreach ($list as $order) {
+            if (!is_array($order) || (int) ($order['status'] ?? 0) !== 2) {
+                continue;
+            }
+            if ((float) ($order['total_amount'] ?? 0) <= 0) {
+                continue;
+            }
+            $remark = (string) ($order['remark'] ?? '');
+            $userId = afdianUserIdFromRemark($cfg, $remark);
+            if ($userId <= 0) {
+                continue;
+            }
+            $user = findUserById($users, $userId);
+            if (!$user) {
+                continue;
+            }
+            $nickname = limitText(trim((string) ($user['nickname'] ?? 'YITMC 成员')), 20);
+            if ($nickname === '') {
+                $nickname = 'YITMC 成员';
+            }
+            $anonymous = strpos($remark, '匿名') !== false;
+            $result = recordAfdianSponsorship($order, $userId, $nickname, $anonymous, 'sync');
+            if (empty($result['conflict']) && !empty($result['sponsor'])) {
+                $sponsors[] = sponsorOrderView($result['sponsor'], (string) ($result['date'] ?? date('Y-m')));
+            }
+        }
+        respond([
+            'ok' => true,
+            'skipped' => false,
+            'synced' => count($sponsors),
+            'sponsors' => $sponsors,
         ]);
 
     case 'sponsor_code':

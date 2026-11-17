@@ -270,6 +270,10 @@
             </p>
             <p class="hint">Webhook 地址（填到爱发电开发者页面的 Webhook URL）：</p>
             <code class="webhook-url">{{ afdian.webhookUrl || '保存配置后生成' }}</code>
+            <p class="hint">
+              如果爱发电的 Webhook 测试按钮暂时维护，不影响订单号手动核验；
+              用户刷新赞助页时也会自动轮询最近订单并补登记。
+            </p>
             <div class="field-grid">
               <label><span>爱发电 user_id</span><input v-model="afdian.userId" autocomplete="off" /></label>
               <label><span>API Token</span>

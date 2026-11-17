@@ -50,6 +50,21 @@ export async function fetchSponsorCode(): Promise<string> {
   return String(json.code || '')
 }
 
+export interface SponsorSyncResult {
+  skipped: boolean
+  synced: number
+  sponsors: SponsorPublic[]
+}
+
+export async function syncSponsors(): Promise<SponsorSyncResult> {
+  const json = await post({ action: 'sponsor_sync' })
+  return {
+    skipped: Boolean(json.skipped),
+    synced: Number(json.synced) || 0,
+    sponsors: Array.isArray(json.sponsors) ? (json.sponsors as SponsorPublic[]) : [],
+  }
+}
+
 export async function claimSponsor(
   outTradeNo: string,
   anonymous: boolean,

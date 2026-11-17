@@ -71,7 +71,8 @@
                   <code>{{ sponsorCode }}</code>
                   <p>
                     在爱发电付款时，把这段码填到订单「留言」里，系统会自动登记并展示你的鸣谢；
-                    如需匿名，请在留言里加上「匿名」。忘记填也可以继续用下面的订单号登记。
+                    如需匿名，请在留言里加上「匿名」。付款后刷新本页会自动同步最新订单，
+                    也可以继续用下面的订单号登记。
                   </p>
                 </div>
                 <p class="sponsor-claim__hint">
@@ -172,7 +173,7 @@ import { siteConfig, sponsorsData } from '@/data'
 import { dateSortKey } from '@/lib/date'
 import { useAuth } from '@/composables/useAuth'
 import { loginHref } from '@/lib/auth'
-import { claimSponsor, fetchSponsorCode, fetchSponsorStatus, type SponsorPublic } from '@/lib/sponsor'
+import { claimSponsor, fetchSponsorCode, fetchSponsorStatus, syncSponsors, type SponsorPublic } from '@/lib/sponsor'
 
 const config = siteConfig
 const { user, refreshAuth } = useAuth()
@@ -285,12 +286,19 @@ async function copyCode() {
 onMounted(async () => {
   await refreshAuth()
   await loadAfdianStatus()
-  if (user.value && afdianStatus.configured) {
+  if (!afdianStatus.configured) return
+  if (user.value) {
     try {
       sponsorCode.value = await fetchSponsorCode()
     } catch {
       // 登记码获取失败时仍可手动提交订单号
     }
+  }
+  try {
+    const result = await syncSponsors()
+    for (const sponsor of result.sponsors) upsertSponsor(sponsor)
+  } catch {
+    // 同步失败不影响手动登记
   }
 })
 </script>
